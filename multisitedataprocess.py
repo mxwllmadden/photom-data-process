@@ -1,6 +1,9 @@
 # This script is intended to process image files taken using the Multisite Photometry system in Brian Mathur's Lab at University of Maryland Baltimore
 # For details on the configuration of the multisite photometry system hardware, see X
 
+#This code was written while I was (re)learning python and as a result there are a couple things that could have been done much better. 
+#Specifically, I refrained from using classes as at the time of writing the code I did not have a firm grasp of their use.
+
 import tkinter as tk
 from tkinter import ttk, filedialog
 import os
@@ -79,8 +82,20 @@ def reg_select():
     def confirmreg():
         #confirm the location of the circle selector
         print("bong")
-    def drag():
-        cirselector.place(x=event.x_reggui, y=event.y_reggui,anchor="center")
+        nonlocal activeregion
+        x, y, dx, dy = selectioncanvas.coords(selectoval)
+        name = selectioncanvas.create_oval(x, y, dx, dy, outline='blue', width=3)
+        reg_shapelist.append(name)
+        if activeregion >= len(regionlist):
+            reggui.destroy()
+        else:
+            activeregion = activeregion + 1
+            currentregion.set("Currently selecting "+regionlist[activeregion])
+
+
+    def drag(event):
+        #cirselector.place(x=event.x_reggui, y=event.y_reggui,anchor="center")
+        selectioncanvas.moveto(selectoval,event.x-50,event.y-50)
 
     reggui = tk.Toplevel(gui)
     reggui.geometry(imgsizx.get()+"x"+str(int(imgsizy.get())+100))
@@ -88,14 +103,25 @@ def reg_select():
     reggui.resizable(0,0)
     im  = Image.open(dir_list[1]+im_prefix.get()+"0_2.tif")
     im_disp = ImageTk.PhotoImage(im)
-    im_lab = tk.Label(reggui,image=im_disp).place(x=0,y=0)
+    selectioncanvas = tk.Canvas(reggui,height=420,width=420)
+    selectioncanvas.place(x=0,y=0)
+    selectioncanvas.create_image(0,0,image=im_disp,anchor="nw")
+    selectoval = selectioncanvas.create_oval(0,0,100,100,activewidth = 5, activeoutline='red',activefill='pink',width=4,outline='pink')
+
     tk.Label(reggui, text="Drag and drop the red circle to cover the selected region").place(x = 10, y = int(imgsizy.get())+10)
     currentregion = tk.StringVar()
     tk.Label(reggui,textvariable=currentregion).place(x=10, y = int(imgsizy.get())+50)
-    currentregion.set("Currently selecting CORRECTION FIBER")
-    tk.Button(reggui,text="CONFIRM REGION").place(x = int(imgsizx.get())-150, y = int(imgsizy.get())+50)
 
-
+    tk.Button(reggui,text="CONFIRM REGION",command=confirmreg).place(x = int(imgsizx.get())-150, y = int(imgsizy.get())+50)
+    
+    regionlist = ["CORRECTION FIBER", "BACKGROUND SIGNAL"]
+    reg_shapelist = []
+    for i in range(5):
+        if roi[i].get() != "NA":
+            regionlist.append(roi[i].get())
+    currentregion.set("Currently selecting "+regionlist[0])
+    activeregion = 0
+    selectioncanvas.bind("<B1-Motion>", drag)
     reggui.mainloop()
 
 
@@ -174,20 +200,21 @@ tk.Label(tab2, text="Image Size").grid(column=0,row=8,padx=10,pady=10,sticky="e"
 tk.Label(tab2, text="X").grid(column=2,row=8,padx=0,pady=0,sticky="w")
 #Set the string variables for the Entry Fields
 im_prefix = tk.StringVar()
-roi1 = tk.StringVar()
-roi2 = tk.StringVar()
-roi3 = tk.StringVar()
-roi4 = tk.StringVar()
-roi5 = tk.StringVar()
+roi = [0,0,0,0,0]
+roi[0] = tk.StringVar()
+roi[1] = tk.StringVar()
+roi[2] = tk.StringVar()
+roi[3] = tk.StringVar()
+roi[4] = tk.StringVar()
 imgptrial = tk.StringVar()
 imgsizx = tk.StringVar()
 imgsizy = tk.StringVar()
 tk.Entry(tab2, width=18, textvariable=im_prefix).grid(column=1,row=1,padx=10,pady=10,sticky="w")
-tk.Entry(tab2, width=18, textvariable=roi1).grid(column=1,row=2,padx=10,pady=10,sticky="w")
-tk.Entry(tab2, width=18, textvariable=roi2).grid(column=1,row=3,padx=10,pady=10,sticky="w")
-tk.Entry(tab2, width=18, textvariable=roi3).grid(column=1,row=4,padx=10,pady=10,sticky="w")
-tk.Entry(tab2, width=18, textvariable=roi4).grid(column=1,row=5,padx=10,pady=10,sticky="w")
-tk.Entry(tab2, width=18, textvariable=roi5).grid(column=1,row=6,padx=10,pady=10,sticky="w")
+tk.Entry(tab2, width=18, textvariable=roi[0]).grid(column=1,row=2,padx=10,pady=10,sticky="w")
+tk.Entry(tab2, width=18, textvariable=roi[1]).grid(column=1,row=3,padx=10,pady=10,sticky="w")
+tk.Entry(tab2, width=18, textvariable=roi[2]).grid(column=1,row=4,padx=10,pady=10,sticky="w")
+tk.Entry(tab2, width=18, textvariable=roi[3]).grid(column=1,row=5,padx=10,pady=10,sticky="w")
+tk.Entry(tab2, width=18, textvariable=roi[4]).grid(column=1,row=6,padx=10,pady=10,sticky="w")
 tk.Entry(tab2, width=18, text=200, textvariable=imgptrial).grid(column=1,row=7,padx=10,pady=10,sticky="w")
 tk.Entry(tab2, width=18, text=424, textvariable=imgsizx).grid(column=1,row=8,padx=(10,0),pady=10,sticky="w")
 tk.Entry(tab2, width=18, text=424, textvariable=imgsizy).grid(column=3,row=8,padx=(0,10),pady=10,sticky="w")
@@ -201,11 +228,9 @@ ani_start.set("1")
 ani_end.set("15")
 #default text for each field on tab2
 im_prefix.set("/mrk_pfc")
-roi1.set("PTA")
-roi2.set("NA")
-roi3.set("NA")
-roi4.set("NA")
-roi5.set("NA")
+for i in range(5):
+    roi[i].set("NA")
+roi[0].set("PTA")
 imgptrial.set("200")
 imgsizx.set("420")
 imgsizy.set("420")
