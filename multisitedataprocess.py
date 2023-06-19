@@ -16,6 +16,7 @@ def fileselect():
 def loadruns():
     #This function searches the listed directory for a list of folders matching the parameters described through the entry fields.
     global dir_list
+    global dir_coords
     dir_list = []
     if not (ani_start.get().isdigit() and ani_end.get().isdigit()):
         ani_start.set("ERROR")
@@ -79,14 +80,20 @@ def loadruns():
 def reg_select():
     #this function's purpose is to allow for the selection of each region.
     #steps: create new window; load image; allow for selection of the appropriate region within the image, do so for each and save within a global variable.
+    global reg_coords
+    reg_coords = []
     def confirmreg():
         #confirm the location of the circle selector
         print("bong")
         nonlocal activeregion
         x, y, dx, dy = selectioncanvas.coords(selectoval)
+        reg_coords.append(x)
+        reg_coords.append(y)
+        reg_coords.append(dx)
+        reg_coords.append(dy)
         name = selectioncanvas.create_oval(x, y, dx, dy, outline='blue', width=3)
         reg_shapelist.append(name)
-        if activeregion >= len(regionlist):
+        if activeregion >= len(regionlist)-1:
             reggui.destroy()
         else:
             activeregion = activeregion + 1
@@ -125,8 +132,9 @@ def reg_select():
     reggui.mainloop()
 
 
-#Create any needed data structures/variables
-dir_list = []
+#Create any needed variables that are going to be important.
+dir_list = [] #List of directories that need to be scanned through for images to analyze.
+reg_coords = [] #The list of coordinates on the photometry image that mark each fiber.
 
 #Set features of the GUI window
 gui = tk.Tk()
