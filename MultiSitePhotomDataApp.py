@@ -16,8 +16,22 @@ class Controller:
         self.notebook.add(self.tab1, text = self.tab1.title)
         self.notebook.add(self.tab2, text = self.tab2.title)
         self.notebook.pack(expand=1, fill="both")
-    def regselect(self):
-        pass
+    def startregselect(self, imagedirectory, regions):
+        self.popout1 = PopoutRegionselect(self, imagedirectory, regions)
+        self.popout1.mainloop
+    
+    def destroyregselect(self, regions, fibercoords):
+        self.popout1.destroy()
+        del self.popout1
+        self.photomregions = regions
+        self.fibercoords = fibercoords
+
+class PopoutRegionselect(tk.Toplevel):
+    def __init__(self,parent,imagepath,variables) -> None:
+        super().__init__(parent)
+        self.geometry(imgsizx.get()+"x"+str(int(imgsizy.get())+100))
+        self.wm_attributes('-transparentcolor','green')
+        self.resizable(0,0)
 
 class MSImageGUI(tk.Frame):
     def __init__(self,notebook,parent) -> None:
@@ -149,7 +163,7 @@ class MSImageGUI(tk.Frame):
             else: self.regselbutton["state"] = "disabled"
 
     def regselect(self):
-        pass
+        self.parent.startpopout(self)
 
     def imageprocess(self):
         pass
