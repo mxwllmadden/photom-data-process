@@ -9,29 +9,22 @@ class Controller:
         root.geometry("500x500")
         root.resizable(0,0)
 
-        # Instantiate each Tab
+        # This section defines the start configuration of the program.
+        # Create instances of the classes that are used on startup within tabs.
         self.notebook = ttk.Notebook(root)
         self.tab1 = MSImageGUI(self.notebook,self)
         self.tab2 = MSIbackparam(self.notebook,self)
         self.notebook.add(self.tab1, text = self.tab1.title)
         self.notebook.add(self.tab2, text = self.tab2.title)
         self.notebook.pack(expand=1, fill="both")
-    def startregselect(self, imagedirectory, regions):
-        self.popout1 = PopoutRegionselect(self, imagedirectory, regions)
-        self.popout1.mainloop
-    
-    def destroyregselect(self, regions, fibercoords):
-        self.popout1.destroy()
-        del self.popout1
-        self.photomregions = regions
-        self.fibercoords = fibercoords
 
-class PopoutRegionselect(tk.Toplevel):
+    def regselect(self):
+        pass
+
+class PopoutRegionselect(tk.Frame):
     def __init__(self,parent,imagepath,variables) -> None:
         super().__init__(parent)
-        self.geometry(imgsizx.get()+"x"+str(int(imgsizy.get())+100))
-        self.wm_attributes('-transparentcolor','green')
-        self.resizable(0,0)
+        pass
 
 class MSImageGUI(tk.Frame):
     def __init__(self,notebook,parent) -> None:
@@ -163,7 +156,7 @@ class MSImageGUI(tk.Frame):
             else: self.regselbutton["state"] = "disabled"
 
     def regselect(self):
-        self.parent.startpopout(self)
+        self.parent.regselect(self) # I need to fix this.
 
     def imageprocess(self):
         pass
