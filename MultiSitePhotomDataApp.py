@@ -8,29 +8,44 @@ class Controller:
         root.title("Multisite Photometry Data Processing App")
         root.geometry("500x500")
         root.resizable(0,0)
-
         # This section defines the start configuration of the program.
         # Create instances of the classes that are used on startup within tabs.
+        # Anything that is instantiated within a tab should be present at startup and not closed for the entire
+        # Tabs can also call other tabs to be added via calling the addtab method from their __init__ method.
+        # Any class that inherits tk.Frame can be called from within the individual tab class.
         self.notebook = ttk.Notebook(root)
-        self.tab1 = MSImageGUI(self.notebook,self)
-        self.tab2 = MSIbackparam(self.notebook,self)
-        self.notebook.add(self.tab1, text = self.tab1.title)
-        self.notebook.add(self.tab2, text = self.tab2.title)
+        self.tabs = []
+        self.tabs.append(MSImageGUI(self.notebook,self))
+        self.tabs.reverse()
+        for i in range(len(self.tabs)):
+            self.notebook.add(self.tabs[i], text = self.tabs[i].title)
         self.notebook.pack(expand=1, fill="both")
 
-    def regselect(self):
+    def addtab(self, classintab, origin,data):
+        # create instance of the class and return it to the initiating program.
+        # This is used to create "helper" tabs for the primary tab.
+        x = classintab(self.notebook, origin,data)
+        self.tabs.append(x)
+        return x
+
+class dataset():
+    # This empty class object is meant only to be a space that can be shared among other classes to communicate data.
+    # Any default configurations for the program that are universal can be stored here.
+    def __init__(self) -> None:
         pass
 
-class PopoutRegionselect(tk.Frame):
+class MSIRegionselect(tk.Frame):
     def __init__(self,parent,imagepath,variables) -> None:
         super().__init__(parent)
         pass
 
 class MSImageGUI(tk.Frame):
-    def __init__(self,notebook,parent) -> None:
-        super().__init__(notebook)
+    def __init__(self,container,parent) -> None:
+        super().__init__(container)
         self.parent = parent
         self.title = 'Raw Dataset Processing'
+        self.data = dataset()
+        self.parameters = self.parent.addtab(MSIbackparam, self, data = self.data)
         # Create important variables
         self.imagedirlist = [] #The list of directories identified for analysis
         # Labels
@@ -156,13 +171,14 @@ class MSImageGUI(tk.Frame):
             else: self.regselbutton["state"] = "disabled"
 
     def regselect(self):
-        self.parent.regselect(self) # I need to fix this.
+        self.popout1 = tk.Toplevel() # Create an instance of the region select window
+        MSIRegionselect(self) #need to set additional arguments here.
 
     def imageprocess(self):
         pass
 
 class MSIbackparam(tk.Frame):
-    def __init__(self,notebook,parent) -> None:
+    def __init__(self,notebook,parent,data) -> None:
         super().__init__(notebook)
         self.parent = parent
         self.title = 'Background Parameters'
