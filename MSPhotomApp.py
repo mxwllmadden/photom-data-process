@@ -59,9 +59,11 @@ class MSImageProcessGUI(tk.Frame):
     # Processing of image files into raw, unprocessed traces
     @dataclass
     class MSImageDataClass():
-        primary: ...
+        primary: ... #The analysis class.
         _: dataclasses.KW_ONLY
-        regionnames: ... = None
+        topdirectory: ... = None #topdirectory of the given dataset, as a tk.StringVar()
+        imagedirectorylist: ... = None #list of all of the run directories
+        regionnames: ... = None 
         regioncoords: ... = None
 
     def __init__(self, container, controller):
@@ -77,23 +79,23 @@ class MSImageProcessGUI(tk.Frame):
         tk.Label(self, text="Animal Basename", anchor="w",width=20).grid(column=0, row=6, padx=10, pady=(10,0))
         tk.Label(self, text="Start #", anchor="w",width=20).grid(column=1, row=6, padx=10, pady=(10,0))
         tk.Label(self, text="End #", anchor="w",width=20).grid(column=2, row=6, padx=10, pady=(10,0))
-        self.dirpath = tk.StringVar()
+        self.dataset.topdirectory = tk.StringVar()
         self.date_start = tk.StringVar()
         self.date_end = tk.StringVar()
         self.ani_prefix = tk.StringVar()
         self.ani_start = tk.StringVar()
         self.ani_end = tk.StringVar()
         # Text Entry Fields
-        tk.Entry(self, width=50, textvariable=self.dirpath).grid(column=0, row=1, columnspan=2, padx=(10,0), pady=(0,10), sticky="w")
+        tk.Entry(self, width=50, textvariable=self.dataset.topdirectory).grid(column=0, row=1, columnspan=2, padx=(10,0), pady=(0,10), sticky="w")
         tk.Entry(self, width=18, textvariable=self.date_start).grid(column=0, row=4, padx=10, pady=(0,10), sticky="w")
         tk.Entry(self, width=18, textvariable=self.date_end).grid(column=1, row=4, padx=10, pady=(0,10), sticky="w")
         tk.Entry(self, width=18, textvariable=self.ani_prefix).grid(column=0, row=7, padx=10, pady=(0,10), sticky="w")
         tk.Entry(self, width=18, textvariable=self.ani_start).grid(column=1, row=7, padx=10, pady=(0,10), sticky="w")
         tk.Entry(self, width=18, textvariable=self.ani_end).grid(column=2, row=7, padx=10, pady=(0,10), sticky="w")
         # Default values for text entry fields
-        self.dirpath.set("Use button to right")
-        self.date_start.set("05-17-2023")
-        self.date_end.set("05-17-2023")
+        self.dataset.topdirectory.set("Use button to right")
+        self.date_start.set("05-17-23")
+        self.date_end.set("05-17-23")
         self.ani_prefix.set("MRKPFCREV")
         self.ani_start.set("1")
         self.ani_end.set("15")
@@ -126,17 +128,60 @@ class MSImageProcessGUI(tk.Frame):
         rtreescroll.grid(row=0,column=1,sticky="ns")
         self.filetree.config(yscrollcommand=rtreescroll.set)
         self.filetree.bind('<Motion>', 'break')
-
-        controller.addtab(ParameterWindow, self.dataset, title = "test")
+        # set up our helper tab for image parameters
+        self.imgprefix = tk.StringVar()
+        self.imgprefix.set("mrk_pfc")
+        self.imgpertrial = tk.StringVar()
+        prmvar = [self.imgprefix, self.imgpertrial]
+        prmlabels = ["Image Prefix", "Images per Trial"]
+        self.roi = []
+        for i in range(5):
+            self.roi.append(tk.StringVar())
+            prmvar.append(self.roi[i])
+            prmlabels.append("ROI "+str(i+1)+" Name")
+        controller.addtab(ParameterWindow, self.dataset, title = "Image Parameters", parameterlabels = prmlabels, parametervars = prmvar)
     
     def fileselect(self):
-        pass
+        self.dataset.topdirectory.set(filedialog.askdirectory())
 
     def loadruns(self):
-        pass
+        tdir = self.dataset.topdirectory.get()
+        datedirlist = []
+        rundirlist = []
+        if datetonum(self.date_start.get()) and datetonum(self.date_end.get()):
+            for i in range(datetonum(self.date_start.get()),datetonum(self.date_end.get())+1):
+                
+                targetpath = tdir+"/"+numtodate(i)
+                if os.path.exists(targetpath):
+                    datedirlist.append(targetpath)
+        else:
+            self.date_start.set("ERROR")
+            self.date_end.set("ERROR")
+            return
+        animallist=[]
+        
+        for i in range(int(self.ani_start.get()), int(self.ani_end.get())+1):
+            animallist.append("/" + self.ani_prefix.get()+" "+str(i)+" ")
+        #Clear the treeviewer widget
+        for i in self.filetree.get_children(): self.filetree.delete(i)
+
+        for i in datedirlist:
+            for k in animallist:
+                for j in range(len(os.listdir(i))): #this is here to set the theoretical maximum number of runs. Its better than what the old photom did because it can handle an arbitrary number of runs, though its kind of messy.
+                    targetpath = i + k + "Run " + str(j+1)
+                    if os.path.exists(targetpath): 
+                        rundirlist.append(targetpath)
+                        self.filetree.insert('', 'end', text = str(j), values=(i[-8:],(k+"Run "+str(j+1))[1:len(k+"Run "+str(j+1))]))
+        self.dataset.imagedirectorylist = rundirlist
+        if len(datedirlist)>0: self.regselbutton["state"] = "normal"
+        else: self.regselbutton["state"] = "disabled"
 
     def regselect(self):
-        pass
+        regions = []
+        for i in range(len(self.roi)):
+            if self.roi[i].get() != "": regions.append(self.roi[i])
+        img  = Image.open(self.dataset.imagedirectorylist[0]+"/"+self.imgprefix.get()+"0_2.tif")
+        imgregionselectionwindow(tk.Toplevel(),self.dataset, img, regions)
 
     def imageprocess(self):
         pass
@@ -155,6 +200,48 @@ class exampleauxtab(tk.Frame):
         self.primary = dataset.primary
         # Use the kwargs provided
         self.example = kwargs.get("key","default value")
+
+class imgregionselectionwindow(tk.Frame):
+    def __init__(self, container, dataset, img, regions):
+        super().__init__(container)
+        #dataset setup
+        self.dataset = dataset
+        self.primary = dataset.primary
+        self.container = container
+        self.regions = ["Correction Fiber","Background Fiber"] + regions
+        self.img = img
+        im_disp = ImageTk.PhotoImage(img)
+        container.geometry("420x520")
+        container.wm_attributes('-transparentcolor','green')
+        container.resizable(0,0)
+        self.selectioncanvas = tk.Canvas(container,height=420,width=420)
+        self.selectioncanvas.place(x=0,y=0)
+        self.selectioncanvas.create_image(0,0,image=im_disp,anchor="nw")
+        self.selectoval = self.selectioncanvas.create_oval(0,0,100,100,activewidth = 5, activeoutline='red',activefill='pink',width=4,outline='pink')
+        tk.Label(container, text="Drag and drop the red circle to cover the selected region").place(x = 10, y = 430)
+        self.currentregion = tk.StringVar()
+        tk.Label(container,textvariable=self.currentregion).place(x=10, y = 470)
+        tk.Button(container,text="CONFIRM REGION",command=self.confirmreg).place(x = 270, y = 470)
+        self.activeregion = 0
+        container.mainloop()
+
+
+    def confirmreg(self):
+        #confirm the location of the circle selector
+        print("bong")
+        x, y, dx, dy = self.selectioncanvas.coords(self.selectoval)
+        name = self.selectioncanvas.create_oval(x, y, dx, dy, outline='blue', width=3)
+        reg_shapelist.append(name)
+        if self.activeregion >= len(regionlist):
+            self.container.destroy()
+        else:
+            self.activeregion = self.activeregion + 1
+            self.currentregion.set("Currently selecting "+regionlist[self.activeregion])
+
+
+    def drag(self,event):
+        #cirselector.place(x=event.x_reggui, y=event.y_reggui,anchor="center")
+        self.selectioncanvas.moveto(self.selectoval,event.x-50,event.y-50)
         
 class ParameterWindow(tk.Frame):
     def __init__(self, container, dataset, **kwargs):
@@ -186,9 +273,25 @@ class ParameterWindow(tk.Frame):
                 tk.Entry(self, width=18, textvariable=self.paramvars[i]).grid(column=1,row=i,padx=10,pady=10,sticky="w")
 
 # -----------------------------------------Analysis Functions/Classes------------------------------------
-def isvaliddate(date: str):
-    assert isinstance(date, str), 'isvaliddate accepts strings only'
-    pass
+def datetonum(date: str):
+    assert isinstance(date, str), 'datetonum accepts strings only'
+    if len(date) != 8:
+        return False
+    if date[2] != "-" or date[5] != "-":
+        return False
+    mdyextract = [date[0:2], date[3:5], date[6:8]]
+    if all(x.isdigit() for x in mdyextract):
+        mdyextract = [int(i) for i in mdyextract]
+        return ((mdyextract[1]) + (mdyextract[0]*32) + (mdyextract[2]*384))
+    else:
+        return False
+    
+def numtodate(numcode: int):
+    assert isinstance(numcode, int), 'numtodate accepts integers only'
+    y, d = divmod(numcode,384)
+    m, d = divmod(d,32)
+    return (str(m).zfill(2)+"-"+str(d).zfill(2)+"-"+str(y).zfill(2))
+    
 
 
 # -----------------------------------------Initiate the Controller------------------------------------

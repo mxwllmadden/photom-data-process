@@ -70,8 +70,8 @@ class MSImageGUI(tk.Frame):
         tk.Entry(self, width=18, textvariable=self.ani_end).grid(column=2, row=7, padx=10, pady=(0,10), sticky="w")
         # Default values for text entry fields
         self.dirpath.set("Use button to right")
-        self.date_start.set("05-17-2023")
-        self.date_end.set("05-17-2023")
+        self.date_start.set("05-17-23")
+        self.date_end.set("05-17-23")
         self.ani_prefix.set("MRKPFCREV")
         self.ani_start.set("1")
         self.ani_end.set("15")
