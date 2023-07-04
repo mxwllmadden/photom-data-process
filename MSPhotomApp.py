@@ -1,22 +1,24 @@
-import tkinter as tk, os, numpy as np, dataclasses
+import tkinter as tk, os, numpy as np, dataclasses, threading
 from tkinter import ttk, filedialog
-from PIL import Image, ImageTk
-from dataclasses import dataclass, field
+from PIL import Image, ImageTk, ImageEnhance
+from dataclasses import dataclass
 
 # -----------------------------------------Application Main------------------------------------
 class Main():
+    #This class sets up the primary GUI window.
     def __init__(self) -> None:
-        # Create application-wide data object
         self.root = tk.Tk() #root is the tk.Tk() window
-        self.controller = self #controller is the current instance of this controller class
         # Set window properties
         self.root.title("Multisite Photometry Data Processing/Analysis App")
         self.root.geometry("500x500")
         self.root.resizable(0,0)
         # Create notebook for application tabs, add them in reverse order to appearance
+        # This is to allow each application tab object to add its own additional tabs when created
+        # and have those tabs appear after the instantiating tab in the list.
         # Each primary analysis window should receive self.tabcontainer and the app object.
         self.tabcontainer = ttk.Notebook(self.root)
         self.tabs = []
+        # self.tabs.append(examplepriamryanalysis(self.tabcontainer,self))
         self.tabs.append(MSImageProcessGUI(self.tabcontainer,self))
         # Add all objects to be displayed in tabs to the tabcontainer
         self.tabs.reverse()
@@ -36,6 +38,7 @@ class Main():
 # -----------------------------------------Primary Analysis Frames------------------------------------
 class exampleprimaryanalysis(tk.Frame):
     # This class is provided as a template to add additional analysis windows to the application
+    # I use a nested dataclass to facilitate passing of information between classes of a specific analysis
     @dataclass
     class ExampleDataClass():
         #primary contains the object 
@@ -53,7 +56,7 @@ class exampleprimaryanalysis(tk.Frame):
         # Add widgets to the Frame
         tk.Label(self, text="Hello World!", anchor="w",width=20).grid(column=0, row=0, padx=10, pady=(10,0))
         # Add auxillary tabs
-        controller.addtab(exampleauxtab, self.dataset) #add any kwargs if needed
+        controller.addtab(exampleauxtab, self.dataset) #add any additonal args/kwargs if needed
 
 class MSImageProcessGUI(tk.Frame):
     # Processing of image files into raw, unprocessed traces
@@ -63,8 +66,10 @@ class MSImageProcessGUI(tk.Frame):
         _: dataclasses.KW_ONLY
         topdirectory: ... = None #topdirectory of the given dataset, as a tk.StringVar()
         imagedirectorylist: ... = None #list of all of the run directories
-        regionnames: ... = None 
-        regioncoords: ... = None
+        tracesbydirthenreg: ... = None #output of each of the traces
+        regionnames: ... = None #names of each region
+        regioncoords: ... = None #bounding coordinates
+        regionmasks: ... = None #generated masks
 
     def __init__(self, container, controller):
         super().__init__(container)
@@ -114,6 +119,7 @@ class MSImageProcessGUI(tk.Frame):
         self.processbutton.grid(column=0, row=2,padx=0, pady=(0,10), sticky="se")
         self.regselbutton["state"] = "disabled"
         self.processbutton["state"] = "disabled"
+        #self.processbutton["state"] = "disabled"
         # Creating the Treeview widget for displaying the files
         runcanvas = tk.Canvas(self)
         runcanvas.grid(column=0,row=8,padx=10,pady=10,sticky="nw", columnspan=3, rowspan=2)
@@ -140,6 +146,7 @@ class MSImageProcessGUI(tk.Frame):
             prmvar.append(self.roi[i])
             prmlabels.append("ROI "+str(i+1)+" Name")
         controller.addtab(ParameterWindow, self.dataset, title = "Image Parameters", parameterlabels = prmlabels, parametervars = prmvar)
+        self.roi[0].set("PTA")
     
     def fileselect(self):
         self.dataset.topdirectory.set(filedialog.askdirectory())
@@ -179,18 +186,39 @@ class MSImageProcessGUI(tk.Frame):
     def regselect(self):
         regions = []
         for i in range(len(self.roi)):
-            if self.roi[i].get() != "": regions.append(self.roi[i])
+            if self.roi[i].get() != "": regions.append(self.roi[i].get())
         img  = Image.open(self.dataset.imagedirectorylist[0]+"/"+self.imgprefix.get()+"0_2.tif")
-        imgregionselectionwindow(tk.Toplevel(),self.dataset, img, regions)
+        #Better than passing the entire class I think. Gets executed when imgregionselectionwindow quits.
+        def buttonupdate(): self.processbutton["state"] = "normal" 
+        imgregionselectionwindow(tk.Toplevel(),self.dataset, img, regions,buttonupdate)
 
     def imageprocess(self):
-        pass
+        def threadedfunc(container,dataset):
+            #first we need to create a mask for each region.
+            dataset.regionmasks = []
+            for i in range(len(dataset.regionnames)):
+                cx = sum(dataset.regioncoords[i][0:3:2])/2
+                cy = sum(dataset.regioncoords[i][1:4:2])/2
+                rad = dataset.regioncoords[i][2] - self.dataset.regioncoords[i][0]
+                dataset.regionmasks.append(npy_circlemask(424,424,cx,cy,rad))
+            #now that we have the masks for each region we can process each of the directories in turn
+            dataset.tracesbydirthenreg = []
+            for i in dataset.imagedirectorylist:
+                traces = photomimageprocess(i,self.imgprefix.get(),self.dataset.regionmasks)
+                dataset.tracesbydirthenreg.append(traces)
+                #need to add saving the output locally here
+            container.processbutton["state"] = "normal"
+        procthread = threading.Thread(target=threadedfunc, args=(self, self.dataset),daemon=True)
+        self.processbutton["state"] = "disabled"
+        procthread.start()
+
 
 
 # -----------------------------------------Auxillary Tabs/Popups------------------------------------
 # Generally in this application, if a frame is expected to persist and be created at startup, it should be a tab
 # If it is going to open/close, it should be a popup (toplevel). Toplevel windows are handled within the Primary
-# Analysis frames while aux tabs are created using controller.addtab in the init method of the Primary Analysis frame
+# Analysis frame that instantiates it while aux tabs are created using controller.addtab inside __init__ method 
+# of the corresponding Primary Analysis frame
 
 class exampleauxtab(tk.Frame):
     def __init__(self, container, dataset, **kwargs):
@@ -202,7 +230,7 @@ class exampleauxtab(tk.Frame):
         self.example = kwargs.get("key","default value")
 
 class imgregionselectionwindow(tk.Frame):
-    def __init__(self, container, dataset, img, regions):
+    def __init__(self, container, dataset, img, regions, callwhenquit):
         super().__init__(container)
         #dataset setup
         self.dataset = dataset
@@ -210,6 +238,7 @@ class imgregionselectionwindow(tk.Frame):
         self.container = container
         self.regions = ["Correction Fiber","Background Fiber"] + regions
         self.img = img
+        self.callwhenquit = callwhenquit
         im_disp = ImageTk.PhotoImage(img)
         container.geometry("420x520")
         container.wm_attributes('-transparentcolor','green')
@@ -220,23 +249,30 @@ class imgregionselectionwindow(tk.Frame):
         self.selectoval = self.selectioncanvas.create_oval(0,0,100,100,activewidth = 5, activeoutline='red',activefill='pink',width=4,outline='pink')
         tk.Label(container, text="Drag and drop the red circle to cover the selected region").place(x = 10, y = 430)
         self.currentregion = tk.StringVar()
+        self.currentregion.set("Currently selecting "+self.regions[0])
         tk.Label(container,textvariable=self.currentregion).place(x=10, y = 470)
         tk.Button(container,text="CONFIRM REGION",command=self.confirmreg).place(x = 270, y = 470)
+        self.selectioncanvas.bind("<B1-Motion>", self.drag)
         self.activeregion = 0
+        self.regshapelist = [] # List that will contain all the circle selectors marking the image
         container.mainloop()
 
 
     def confirmreg(self):
         #confirm the location of the circle selector
-        print("bong")
         x, y, dx, dy = self.selectioncanvas.coords(self.selectoval)
         name = self.selectioncanvas.create_oval(x, y, dx, dy, outline='blue', width=3)
-        reg_shapelist.append(name)
-        if self.activeregion >= len(regionlist):
+        self.regshapelist.append(name)
+        self.activeregion += 1
+        if self.activeregion >= len(self.regions):
+            self.dataset.regionnames = self.regions
+            self.dataset.regioncoords = []
+            for i in self.regshapelist:
+                self.dataset.regioncoords.append(self.selectioncanvas.coords(i))
+                self.callwhenquit()
             self.container.destroy()
         else:
-            self.activeregion = self.activeregion + 1
-            self.currentregion.set("Currently selecting "+regionlist[self.activeregion])
+            self.currentregion.set("Currently selecting "+self.regions[self.activeregion])
 
 
     def drag(self,event):
@@ -273,6 +309,7 @@ class ParameterWindow(tk.Frame):
                 tk.Entry(self, width=18, textvariable=self.paramvars[i]).grid(column=1,row=i,padx=10,pady=10,sticky="w")
 
 # -----------------------------------------Analysis Functions/Classes------------------------------------
+# If its not hyper specific to a class, put it here. Makes it easier to reuse.
 def datetonum(date: str):
     assert isinstance(date, str), 'datetonum accepts strings only'
     if len(date) != 8:
@@ -291,10 +328,49 @@ def numtodate(numcode: int):
     y, d = divmod(numcode,384)
     m, d = divmod(d,32)
     return (str(m).zfill(2)+"-"+str(d).zfill(2)+"-"+str(y).zfill(2))
-    
+
+# Creates a numpy mask array with a circle region. Is used for masking image files to pull only the selected fiber region.
+def npy_circlemask(sizex,sizey,circlex,circley,radius):
+    mask = np.empty((sizex,sizey))
+    for x in range(sizex):
+        for y in range(sizey):
+            if ((x-circlex)**2 + (y-circley)**2)**(0.5) <= radius:
+                mask[x,y] = True
+            else:
+                mask[x,y] = False
+    return mask
+
+def photomimageprocess(directory,imgprefix,masks):
+    # within a given directory, analyze all images within that directory.
+    imgls = [f for f in os.listdir(directory) if f.endswith('.tif')]
+    imgls = [f for f in imgls if imgprefix in f]
+    maximgnum = len(imgls) # This is to set the theoretical maximum number of images that will be processed
+    # Iterating up to maximgnum has a downside, if the file names "skip" (1,2,4,5) then the last image will not be analyzed.
+    # In the above example, 1,2,4 would be analyzed and 5 will be left out. I would like to alter this behavior in the future
+    # to be better at catching files that may not match this.
+    #create numpy arrays for each mask
+    traces = []
+    for j in masks:
+        traces.append(np.zeros((maximgnum)))
+    for i in range(maximgnum):
+        imdir = directory+"\\"+imgprefix +"0_"+ str(i+1) + ".tif" # Currently, this function doesn't catch images with "1_"
+        if os.path.exists(imdir):
+            imdat = loadimg(imdir)
+            print(imdir)
+            for j in range(len(masks)):
+                np.put(traces[j],i,np.ma.masked_array(imdat, masks[j]).mean())
+    return traces
+
+def loadimg(path):
+    img = Image.open(path)
+    img.load()
+    imgdata = np.asarray(img,dtype="uint32")
+    return imgdata
+
 
 
 # -----------------------------------------Initiate the Controller------------------------------------
 if __name__=="__main__":
     app = Main()
     app.run()
+
