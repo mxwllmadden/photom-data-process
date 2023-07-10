@@ -33,7 +33,7 @@ class exampleprimaryanalysis(tk.Frame):
         controller.addtab(exampleauxtab, self.dataset) #add any additonal args/kwargs if needed
 
 class MSImageProcessGUI(tk.Frame):
-    # Processing of image files into raw, unprocessed traces
+    # Processing of image files into traces
 
     # This dataclass is meant to store just about every peice of data relevant to the analysis. At the 
     # end of processing, we can save the whole thing.
@@ -47,6 +47,8 @@ class MSImageProcessGUI(tk.Frame):
         regionnames: ... = None #names of each region
         regioncoords: ... = None #bounding coordinates
         regionmasks: ... = None #generated masks
+        imgs_per_trial: ... = None #number of images per trial within a SINGLE channel.
+        channels: int = 2
 
     def __init__(self, container, controller):
         super().__init__(container)
@@ -170,8 +172,54 @@ class MSImageProcessGUI(tk.Frame):
         imgregionselectionwindow(tk.Toplevel(),self.dataset, img, regions,buttonupdate)
 
     def imageprocess(self):
-        procthread = threading.Thread(target=photomthreadedfunc, args=(self, self.dataset),daemon=True)
+        # This function is called in a seperate thread when you hit "Process" for the image processing window.
+        # Placing it in a second thread allows processing to happen without disrupting the GUI
+        # At a future time it may be worthwhile to see if this could be sped up via multiprocessing.
+        def photomthreadedfunc(container,dataset, imgpertrial, imgprefix): 
+            # STEP 1: Generate all the mask arrays for each region from the dataset info.
+            # Each mask is a boolean numpy array with the selected region as "True" and all else as "False"
+            dataset.regionmasks = []
+            for i in range(len(dataset.regionnames)):
+                cx = sum(dataset.regioncoords[i][0:3:2])/2
+                cy = sum(dataset.regioncoords[i][1:4:2])/2
+                rad = (dataset.regioncoords[i][2] - dataset.regioncoords[i][0])/2
+                dataset.regionmasks.append(npy_circlemask(424,424,cx,cy,rad))
+            #STEP 2: Iterate through every directory that contains images
+            dataset.tracesbydirthenreg = []
+            for i in dataset.imagedirectorylist:
+                #STEP 3: use the masks we generated to pull the mean value for each region in each image
+                traces = photomimageprocess(i,imgprefix,dataset.regionmasks)
+                #STEP 4: remove the mean of the background trace from all other traces
+                traces = subtractbackgroundsignal(traces)
+                #STEP 5: split each trace by channel
+                traces = splittraces(traces,dataset.channels)
+                #STEP 6: reshape the traces according to the number of images per trial
+                traces = reshapetraces(traces,imgpertrial)
+                #STEP 7: add the resultant traces to the dataset
+                dataset.tracesbydirthenreg.append(traces)
+                #STEP 8: Also save the traces in the directory of the images.
+                filename = i + "\\" + i.split("\\")[-1]
+                tracedict = {}
+                for j in range(len(traces)):
+                    signal, channel = divmod(j, dataset.channels)
+                    if signal == 0:
+                        key = "corrsig_ch"+str(channel)
+                    else:
+                        key = "sig"+str(signal)+"_ch"+str(channel)
+                    tracedict[key] = traces[j]
+                for j in range(2,len(dataset.regionnames)):
+                    tracedict[("sig"+str(j-1)+"_str")] = dataset.regionnames[j]
+                scipy.io.savemat(filename,tracedict)
+            container.processbutton["state"] = "normal"
+            self.regselbutton["state"] = "normal"
+            self.loadbutton["state"] = "normal"
+            # now we need to save a local matlab file containing all the traces.
+        
+        # This section initiates the threaded function.
+        procthread = threading.Thread(target=photomthreadedfunc, args=(self, self.dataset, self.imgpertrial.get(), self.imgprefix.get()),daemon=True)
         self.processbutton["state"] = "disabled"
+        self.regselbutton["state"] = "disabled"
+        self.loadbutton["state"] = "disabled"
         procthread.start()
 
 # -----------------------------------------Auxillary Tabs/Popups------------------------------------

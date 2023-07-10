@@ -25,33 +25,7 @@ def numtodate(numcode: int):
     m, d = divmod(d,32)
     return (str(m).zfill(2)+"-"+str(d).zfill(2)+"-"+str(y).zfill(2))
 
-# This function is called in a second thread when you hit "Process" for the image processing window.
-def photomthreadedfunc(container,dataset): 
-            # STEP 1: Generate all the mask arrays for each region from the dataset info.
-            # Each mask is a boolean numpy array with the selected region as "True" and all else as "False"
-            dataset.regionmasks = []
-            for i in range(len(dataset.regionnames)):
-                cx = sum(dataset.regioncoords[i][0:3:2])/2
-                cy = sum(dataset.regioncoords[i][1:4:2])/2
-                rad = dataset.regioncoords[i][2] - dataset.regioncoords[i][0]
-                dataset.regionmasks.append(npy_circlemask(424,424,cx,cy,rad))
-            #STEP 2: Iterate through every directory that contains images
-            dataset.tracesbydirthenreg = []
-            for i in dataset.imagedirectorylist:
-                #STEP 3: use the masks we generated to pull the mean value for each region in each image
-                traces = photomimageprocess(i,container.imgprefix.get(),dataset.regionmasks)
-                #STEP 4: remove the mean of the background trace from all other traces
-                traces = subtractbackgroundsignal(traces)
-                #STEP 5: split each trace by channel
-                traces = splittraces(traces)
-                #STEP 6: add the resultant traces to the dataset
-                dataset.tracesbydirthenreg.append(traces)
-                #STEP 7: Also save the traces in the directory of the images.
-                filename = i + "\\" + i.split("\\")[-1]
-                tracedict = {}
-                scipy.io.savemat(filename,tracedict)
-            container.processbutton["state"] = "normal"
-            # now we need to save a local matlab file containing all the traces.
+
 
 # Creates a numpy mask array with a circle region. Is used for masking image files to pull only the selected fiber region.
 def npy_circlemask(sizex,sizey,circlex,circley,radius):
@@ -92,8 +66,21 @@ def subtractbackgroundsignal(traces): #accepts a list of 1 dimensional numpy arr
         subtrace.append(np.subtract(traces[i],traces[0]))
     return subtrace
 
-def splittraces(traces):
-    pass
+def splittraces(traces,channels):
+    splittraces = []
+    for i in range(len(traces)):
+        for j in range(channels): splittraces.append(traces[i][j::channels])
+    return splittraces
+
+def reshapetraces(traces,imgptrial):
+    reshapedtraces = []
+    for i in range(len(traces)):
+        size = np.prod(traces[i].shape)
+        trials, remainder = divmod(size,imgptrial)
+        x = traces[i][0:(trials*imgptrial)]
+        reshapedtraces.append(np.reshape(x,(trials,imgptrial)))
+    return reshapedtraces
+
 
 def loadimg(path):
     img = Image.open(path)

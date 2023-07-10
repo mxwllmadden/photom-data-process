@@ -1,15 +1,18 @@
 import MSPhotomAnalysis as msp
 import numpy as np
 import PIL.Image as img
+from dataclasses import dataclass
 
-dir = 'D:\\Alli Photometry\\05-17-23\\MRKPFCREV 4 Run 1\\mrk_pfc0_2.tif'
-imprfx = "mrk_pfc"
+# Test functions for parts of the MSPhotomAnalysis.py file
+traces = []
+for i in range(10): traces.append(np.arange(30))
 
-x = msp.loadimg(dir)
-y = msp.npy_circlemask(424,424,5,5,20)
-z = img.fromarray(y)
-b = np.where(y,x,0)
-c = img.fromarray(b)
-print(b.sum())
-print(y.sum())
-print(b.sum()/y.sum())
+
+
+@dataclass
+class data():
+    channels: int = 2
+
+d = data()
+
+print(d.channels)
