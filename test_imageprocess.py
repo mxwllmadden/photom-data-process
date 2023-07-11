@@ -11,3 +11,6 @@ print(traces[0])
 traces = msp.reshapetraces(traces,3)
 
 print(traces[0])
+
+a = 'D:/Alli Photometry/05-17-23/MRKPFCREV 4 Run 1'
+print(a.split("/")[-1])

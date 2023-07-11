@@ -9,7 +9,7 @@ class Main():
         self.root = tk.Tk() #root is the tk.Tk() window
         # Set window properties
         self.root.title("Multisite Photometry Data Processing/Analysis App")
-        self.root.geometry("500x500")
+        self.root.geometry("500x550")
         self.root.resizable(0,0)
         # Create notebook for application tabs, add them in reverse order to appearance
         # This is to allow each application tab object to add its own additional tabs when created

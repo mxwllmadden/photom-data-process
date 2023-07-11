@@ -38,7 +38,9 @@ def npy_circlemask(sizex,sizey,circlex,circley,radius):
                 mask[x,y] = 0
     return mask
 
-def photomimageprocess(directory,imgprefix,masks):
+def photomimageprocess(directory,imgprefix,masks,**kwargs):
+    waitbar = kwargs.get("waitbar", None)
+    txtout = kwargs.get("textvar", None)
     # within a given directory, analyze all images within that directory.
     imgls = [f for f in os.listdir(directory) if f.endswith('.tif')]
     imgls = [f for f in imgls if imgprefix in f]
@@ -50,10 +52,11 @@ def photomimageprocess(directory,imgprefix,masks):
     for j in masks: #create numpy arrays for each mask
         traces.append(np.zeros((maximgnum)))
     for i in range(maximgnum): #iterate through all the imagefiles
-        imdir = directory+"\\"+imgprefix +"0_"+ str(i+1) + ".tif" # Currently, this function doesn't catch images with "1_"
+        imdir = directory+"/"+imgprefix +"0_"+ str(i+1) + ".tif" # Currently, this function doesn't catch images with "1_"
         if os.path.exists(imdir):
             imdat = loadimg(imdir)
-            print(imdir)
+            if waitbar != None: waitbar["value"] = (i/maximgnum)*100
+            if txtout != None: txtout.set(imdir)
             for j in range(len(masks)): #iterate through each mask and apply each mask and get average value.
                 avrgsig = (np.where(masks[j], imdat, 0).sum())/masks[j].sum()
                 np.put(traces[j],i,avrgsig)

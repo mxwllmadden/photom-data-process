@@ -113,10 +113,24 @@ class MSImageProcessGUI(tk.Frame):
         rtreescroll.grid(row=0,column=1,sticky="ns")
         self.filetree.config(yscrollcommand=rtreescroll.set)
         self.filetree.bind('<Motion>', 'break')
+        # Progress Bars For Processing at the bottom of the widget
+        self.longprog = ttk.Progressbar(self, orient="horizontal",length=480,mode="determinate")
+        self.longprog["value"] = 0
+        self.longprog.grid(column=0,row=10,columnspan=5)
+        self.runprog = ttk.Progressbar(self, orient="horizontal",length=480,mode="determinate")
+        self.runprog["value"] = 0
+        self.runprog.grid(column=0,row=12,columnspan=5)
+        self.longprogstat = tk.StringVar()
+        self.longprogstat.set("Run Processing Progress...")
+        tk.Label(self, width=18, textvariable=self.longprogstat).grid(column=0, row=11, padx=10, pady=(0,10), columnspan=5, sticky="nsew")
+        self.shortprogstat = tk.StringVar()
+        self.shortprogstat.set("Image Processing Progress...")
+        tk.Label(self, width=18, textvariable=self.shortprogstat).grid(column=0, row=13, padx=10, pady=(0,10), columnspan=5, sticky="nsew")
         # set up our helper tab for image parameters
         self.imgprefix = tk.StringVar()
         self.imgprefix.set("mrk_pfc")
         self.imgpertrial = tk.StringVar()
+        self.imgpertrial.set("20")
         prmvar = [self.imgprefix, self.imgpertrial]
         prmlabels = ["Image Prefix", "Images per Trial"]
         self.roi = []
@@ -186,9 +200,13 @@ class MSImageProcessGUI(tk.Frame):
                 dataset.regionmasks.append(npy_circlemask(424,424,cx,cy,rad))
             #STEP 2: Iterate through every directory that contains images
             dataset.tracesbydirthenreg = []
+            num_runs = len(dataset.imagedirectorylist)
+            currun = 0
+            self.longprog["value"] = (currun/num_runs)*100
             for i in dataset.imagedirectorylist:
+                self.longprogstat.set("Processing "+i.split("/")[-1])
                 #STEP 3: use the masks we generated to pull the mean value for each region in each image
-                traces = photomimageprocess(i,imgprefix,dataset.regionmasks)
+                traces = photomimageprocess(i,imgprefix,dataset.regionmasks,waitbar = self.runprog, textvar = self.shortprogstat)
                 #STEP 4: remove the mean of the background trace from all other traces
                 traces = subtractbackgroundsignal(traces)
                 #STEP 5: split each trace by channel
@@ -198,7 +216,7 @@ class MSImageProcessGUI(tk.Frame):
                 #STEP 7: add the resultant traces to the dataset
                 dataset.tracesbydirthenreg.append(traces)
                 #STEP 8: Also save the traces in the directory of the images.
-                filename = i + "\\" + i.split("\\")[-1]
+                filename = i + "/" + i.split("/")[-1]+ ".mat"
                 tracedict = {}
                 for j in range(len(traces)):
                     signal, channel = divmod(j, dataset.channels)
@@ -210,13 +228,15 @@ class MSImageProcessGUI(tk.Frame):
                 for j in range(2,len(dataset.regionnames)):
                     tracedict[("sig"+str(j-1)+"_str")] = dataset.regionnames[j]
                 scipy.io.savemat(filename,tracedict)
+                currun += 1
+                self.longprog["value"] = (currun/num_runs)*100
             container.processbutton["state"] = "normal"
             self.regselbutton["state"] = "normal"
             self.loadbutton["state"] = "normal"
             # now we need to save a local matlab file containing all the traces.
         
         # This section initiates the threaded function.
-        procthread = threading.Thread(target=photomthreadedfunc, args=(self, self.dataset, self.imgpertrial.get(), self.imgprefix.get()),daemon=True)
+        procthread = threading.Thread(target=photomthreadedfunc, args=(self, self.dataset, int(self.imgpertrial.get()), self.imgprefix.get()),daemon=True)
         self.processbutton["state"] = "disabled"
         self.regselbutton["state"] = "disabled"
         self.loadbutton["state"] = "disabled"
