@@ -1,4 +1,4 @@
-import tkinter as tk, os, dataclasses, threading
+import tkinter as tk, os, dataclasses, threading, scipy
 from tkinter import ttk, filedialog
 from PIL import Image, ImageTk
 from dataclasses import dataclass
@@ -125,14 +125,17 @@ class MSImageProcessGUI(tk.Frame):
         tk.Label(self, width=18, textvariable=self.longprogstat).grid(column=0, row=11, padx=10, pady=(0,10), columnspan=5, sticky="nsew")
         self.shortprogstat = tk.StringVar()
         self.shortprogstat.set("Image Processing Progress...")
-        tk.Label(self, width=18, textvariable=self.shortprogstat).grid(column=0, row=13, padx=10, pady=(0,10), columnspan=5, sticky="nsew")
+        tk.Label(self, width=18, textvariable=self.shortprogstat).grid(column=0, row=13, padx=10, pady=0, columnspan=5, sticky="nsew")
+        self.speedout = tk.StringVar()
+        self.speedout.set("...")
+        tk.Label(self,width=18, textvariable=self.speedout, anchor="w").grid(column=0,row=14,padx = 10,pady=0, sticky="w")
         # set up our helper tab for image parameters
         self.imgprefix = tk.StringVar()
         self.imgprefix.set("mrk_pfc")
         self.imgpertrial = tk.StringVar()
-        self.imgpertrial.set("20")
+        self.imgpertrial.set("100")
         prmvar = [self.imgprefix, self.imgpertrial]
-        prmlabels = ["Image Prefix", "Images per Trial"]
+        prmlabels = ["Image Prefix", "Images per Trial/Channel"]
         self.roi = []
         for i in range(5):
             self.roi.append(tk.StringVar())
@@ -206,7 +209,7 @@ class MSImageProcessGUI(tk.Frame):
             for i in dataset.imagedirectorylist:
                 self.longprogstat.set("Processing "+i.split("/")[-1])
                 #STEP 3: use the masks we generated to pull the mean value for each region in each image
-                traces = photomimageprocess(i,imgprefix,dataset.regionmasks,waitbar = self.runprog, textvar = self.shortprogstat)
+                traces = photomimageprocess(i,imgprefix,dataset.regionmasks,waitbar = self.runprog, textvar = self.shortprogstat,speedvar = self.speedout)
                 #STEP 4: remove the mean of the background trace from all other traces
                 traces = subtractbackgroundsignal(traces)
                 #STEP 5: split each trace by channel
