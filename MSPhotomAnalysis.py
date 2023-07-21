@@ -1,5 +1,7 @@
-import os, numpy as np, scipy
+import os, numpy as np,tifffile as tf, time
+from matplotlib import pyplot
 from PIL import Image
+
 
 
 # -----------------------------------------Analysis Functions/Classes------------------------------------
@@ -41,6 +43,8 @@ def npy_circlemask(sizex,sizey,circlex,circley,radius):
 def photomimageprocess(directory,imgprefix,masks,**kwargs):
     waitbar = kwargs.get("waitbar", None)
     txtout = kwargs.get("textvar", None)
+    speedvar = kwargs.get("speedvar",None)
+    starttime = time.time()
     # within a given directory, analyze all images within that directory.
     imgls = [f for f in os.listdir(directory) if f.endswith('.tif')]
     imgls = [f for f in imgls if imgprefix in f]
@@ -49,7 +53,7 @@ def photomimageprocess(directory,imgprefix,masks,**kwargs):
     # In the above example, 1,2,4 would be analyzed and 5 will be left out. I would like to alter this behavior in the future
     # to be better at catching files.
     traces = [] 
-    for j in masks: #create numpy arrays for each mask
+    for j in masks: #create 1 numpy array for each mask (and therefore signal)
         traces.append(np.zeros((maximgnum)))
     for i in range(maximgnum): #iterate through all the imagefiles
         imdir = directory+"/"+imgprefix +"0_"+ str(i+1) + ".tif" # Currently, this function doesn't catch images with "1_"
@@ -57,6 +61,7 @@ def photomimageprocess(directory,imgprefix,masks,**kwargs):
             imdat = loadimg(imdir)
             if waitbar != None: waitbar["value"] = (i/maximgnum)*100
             if txtout != None: txtout.set(imdir)
+            if speedvar != None: speedvar.set(str(round(i/(time.time()-starttime),1))+" images/second")
             for j in range(len(masks)): #iterate through each mask and apply each mask and get average value.
                 avrgsig = (np.where(masks[j], imdat, 0).sum())/masks[j].sum()
                 np.put(traces[j],i,avrgsig)
@@ -86,7 +91,7 @@ def reshapetraces(traces,imgptrial):
 
 
 def loadimg(path):
+    # img = tf.imread(path)
     img = Image.open(path)
-    img.load()
-    imgdata = np.asarray(img,dtype="int32")
-    return imgdata
+    imarray = np.array(img)
+    return imarray
