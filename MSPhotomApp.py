@@ -1,8 +1,9 @@
-import tkinter as tk, os, dataclasses, threading, scipy
+import tkinter as tk, os, dataclasses, threading, sys
 from tkinter import ttk, filedialog
 from PIL import Image, ImageTk
 from dataclasses import dataclass
 from MSPhotomAnalysis import *
+from scipy.io import savemat
 
 # The GUI elements have been seperated out into this file to avoid clutter/allow me to focus on the actual
 # analysis of the data. Try to keep functions within each of these classes as minimal as possible. All data
@@ -244,18 +245,24 @@ class MSImageProcessGUI(tk.Frame):
             self.longprog["value"] = (currun/num_runs)*100
             for i in dataset.imagedirectorylist:
                 self.longprogstat.set("Processing "+i.split("/")[-1])
+                print("BEGIN: "+i.split("/")[-1])
                 #STEP 3: use the masks we generated to pull the mean value for each region in each image
+                print("Extracting pixelvalues...")
                 traces = photomimageprocess(i,imgprefix,dataset.regionmasks,waitbar = self.runprog, textvar = self.shortprogstat,speedvar = self.speedout)
                 #STEP 4: remove the mean of the background trace from all other traces
+                print("Subtracting background fiber value...")
                 traces = subtractbackgroundsignal(traces)
                 #STEP 5: split each trace by channel
+                print("Splitting traces by channel...")
                 traces = splittraces(traces,dataset.channels)
                 #STEP 6: reshape the traces according to the number of images per trial
+                print("Splitting trials sequentially...")
                 traces = reshapetraces(traces,imgpertrial)
                 #STEP 7: add the resultant traces to the dataset
+                print("Saving to dataset...")
                 dataset.tracesbydirthenreg.append(traces)
                 #STEP 8: Also save the traces in the directory of the images.
-                filename = i + "/" + i.split("/")[-1]+ ".mat"
+                print("Saving to file...")
                 tracedict = {}
                 for j in range(len(traces)):
                     signal, channel = divmod(j, dataset.channels)
@@ -268,12 +275,18 @@ class MSImageProcessGUI(tk.Frame):
                     tracedict[key] = np.swapaxes(traces[j],0,1)
                 for j in range(2,len(dataset.regionnames)):
                     tracedict[("sig"+str(j-1)+"_str")] = dataset.regionnames[j]
-                scipy.io.savemat(filename,tracedict)
+                filename = i + "/" + i.split("/")[-1]+ ".mat"
+                savemat(filename,tracedict)
+                print("SAVED: "+ filename)
+                filename = os.path.dirname(sys.argv[0]) + "\\" + i.split("/")[-1]+ ".mat"
+                savemat(filename,tracedict)
+                print("SAVED: "+filename)
                 currun += 1
                 self.longprog["value"] = (currun/num_runs)*100
             container.processbutton["state"] = "normal"
             self.regselbutton["state"] = "normal"
             self.loadbutton["state"] = "normal"
+            print("Processing completed!")
             # now we need to save a local matlab file containing all the traces.
         
         # This section initiates the threaded function.
@@ -312,12 +325,11 @@ class imgregionselectionwindow(tk.Frame):
         self.callwhenquit = callwhenquit
         im_disp = ImageTk.PhotoImage(img)
         container.geometry("420x520")
-        container.wm_attributes('-transparentcolor','green')
         container.resizable(0,0)
-        self.selectioncanvas = tk.Canvas(container,height=420,width=420)
+        self.selectioncanvas = tk.Canvas(container,height=424,width=424)
         self.selectioncanvas.place(x=0,y=0)
         self.selectioncanvas.create_image(0,0,image=im_disp,anchor="nw")
-        self.selectoval = self.selectioncanvas.create_oval(0,0,100,100,activewidth = 5, activeoutline='red',activefill='pink',width=4,outline='pink')
+        self.selectoval = self.selectioncanvas.create_oval(0,0,100,100,width=4,outline='red')
         tk.Label(container, text="Drag and drop the red circle to cover the selected region").place(x = 10, y = 430)
         self.currentregion = tk.StringVar()
         self.currentregion.set("Currently selecting "+self.regions[0])
@@ -326,6 +338,7 @@ class imgregionselectionwindow(tk.Frame):
         self.selectioncanvas.bind("<B1-Motion>", self.drag)
         self.activeregion = 0
         self.regshapelist = [] # List that will contain all the circle selectors marking the image
+        container.mainloop()
 
 
     def confirmreg(self):
@@ -388,6 +401,7 @@ class popout(tk.Frame):
         tk.Label(self,text=msg,anchor="center").pack(pady = 4, padx = 4)
         tk.Button(self,text="OK",height=10,width=20,command=self.quit).pack(pady = 4, padx = 4)
         self.pack(expand=1, fill="both")
+        container.mainloop()
     def quit(self):
         self.container.destroy()
 
@@ -396,5 +410,3 @@ if __name__=="__main__":
     root = tk.Tk()
     app = Main(root)
     root.mainloop()
-    
-
