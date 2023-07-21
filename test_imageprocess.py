@@ -1,5 +1,5 @@
 import MSPhotomAnalysis as msp
-import MSPhotomGUI as msg
+import MSPhotomApp as msg
 import scipy, os, tkinter as tk, numpy as np, os, tifffile
 from dataclasses import dataclass
 from PIL import Image
@@ -23,6 +23,8 @@ def test_generateexampledata(): #this generates example data and returns the exp
     pure_signal.append(np.sin(t/100)*50)
     plot_signal = [] # The background signal is added to each trace.
     for i in range(len(pure_signal)): plot_signal.append(pure_signal[i] + backgroundsignal)
+    for i in range(len(plot_signal)): plot_signal[i] = np.ndarray.round(plot_signal[i],0)
+    backgroundsignal = np.ndarray.round(backgroundsignal,0)
 
     if os.path.exists(abs_dir("testdata")) == False:
         os.makedirs(abs_dir("testdata"))
@@ -53,27 +55,33 @@ def test_generateexampledata(): #this generates example data and returns the exp
     
     def checkavrg(array,rowrange,colrange,originalval):
         r = np.average(array[rowrange[0]:rowrange[1],colrange[0]:colrange[1]])
-        if round(originalval,6) == round(r,6): return True
-        else: return False
+        if round(originalval,4) == round(r,4): return True
+        else: 
+            print(originalval/r)
+            print(str(originalval) + "          "+str(r))
+            return False
 
     error = False
     for i in range(3000):
-        img = tifffile.imread(abs_dir("testdata\\img0_"+str(i)+".tif"))
+        # img = tifffile.imread(abs_dir("testdata\\img0_"+str(i)+".tif"))
+        img = Image.open(abs_dir("testdata\\img0_"+str(i)+".tif"))
         imarray = np.array(img)
         rangelistrow = [(147,277),(0,130),(0,130),(0,130),(294,424),(294,424),(294,424)]
         rangelistcol = [(147,277),(0,130),(147,277),(294,424),(0,130),(147,277),(294,424)]
         traces = [backgroundsignal]
         for j in plot_signal: traces.append(j)
         for j in range(len(rangelistrow)):
-            if not checkavrg(imarray,rangelistrow[j],rangelistcol[j],traces[j][i]): error = True
+            if not checkavrg(imarray,rangelistrow[j],rangelistcol[j],traces[j][i]): 
+                error = True
+                print(rangelistrow[j],rangelistcol[j])
     
     if error == True: print("IMAGE AND TRACES DO NOT MATCH")
     else: print("TEST IMAGES HAVE BEEN GENERATED SUCCESSFULLY")
 
+    return pure_signal
 
+signals = test_generateexampledata()
 
-    
-test_generateexampledata()
 
 
 

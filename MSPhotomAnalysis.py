@@ -1,8 +1,6 @@
-import os, numpy as np
+import os, numpy as np,tifffile as tf, time
 from matplotlib import pyplot
 from PIL import Image
-import tifffile as tf
-import time
 
 
 
@@ -93,5 +91,7 @@ def reshapetraces(traces,imgptrial):
 
 
 def loadimg(path):
-    img = tf.imread(path)
-    return img
+    # img = tf.imread(path)
+    img = Image.open(path)
+    imarray = np.array(img)
+    return imarray
