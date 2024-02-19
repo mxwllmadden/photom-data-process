@@ -1,3 +1,22 @@
+"""
+The GUI elements have been seperated out into this file to avoid clutter/allow me to focus on the actual
+analysis of the data. Try to keep functions within each of these classes as minimal as possible. All data
+analysis should be front and center within the MSPhotomApp.py file
+
+Apologies to whomever is reading this in the future. I wrote this after a long
+period of undirected self-learning and WITHOUT reading PEP8. As a result, I've
+neglected to add docstrings, though the existing comments are likely enough for
+your purposes.
+
+I will NOT be refactoring or adding docstrings right now as I am both exhausted
+and wrote all of this as a favor to someone working on a project that isn't 
+mine.
+
+If you have questions or are confused about any part of this script, good luck!
+I recommend reading the manual provided in this repo. Please don't contact me
+about it.
+"""
+
 import tkinter as tk, os, dataclasses, threading, sys
 from tkinter import ttk, filedialog
 from PIL import Image, ImageTk
@@ -5,13 +24,8 @@ from dataclasses import dataclass
 from MSPhotomAnalysis import *
 from scipy.io import savemat
 
-# The GUI elements have been seperated out into this file to avoid clutter/allow me to focus on the actual
-# analysis of the data. Try to keep functions within each of these classes as minimal as possible. All data
-# analysis should be front and center within the MSPhotomApp.py file
 
-# -----------------------------------------Application Main------------------------------------
 class Main():
-    #This class sets up the primary GUI window.
     def __init__(self,root) -> None:
         self.root = root #root is the tk.Tk() window
         # Set window properties

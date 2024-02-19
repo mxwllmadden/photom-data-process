@@ -1,15 +1,29 @@
+"""
+Photometry image analysis functions. Deal with actual processing of images into
+signal traces
+"""
+
+
 import os, numpy as np,tifffile as tf, time
 from matplotlib import pyplot
 from PIL import Image
 
-
-
-# -----------------------------------------Analysis Functions/Classes------------------------------------
-# Actual functions for data analysis. These are front and center as they are the MOST IMPORTANT part of the
-# application. Make sure to write comments saying when/how/if the GUI calls a function.
-
 def datetonum(date: str):
-    assert isinstance(date, str), 'datetonum accepts strings only'
+    """
+    Convert a date string in the format 'MM-DD-YY' to a numerical representation.
+
+    Parameters
+    ----------
+    date : str
+        Date string in the format 'MM-DD-YY'.
+
+    Returns
+    -------
+    int
+        Date in numerical format.
+
+    """
+    
     if len(date) != 8:
         return False
     if date[2] != "-" or date[5] != "-":
@@ -27,10 +41,30 @@ def numtodate(numcode: int):
     m, d = divmod(d,32)
     return (str(m).zfill(2)+"-"+str(d).zfill(2)+"-"+str(y).zfill(2))
 
+def npy_circlemask(sizex : int, sizey : int,circlex : int,circley : int,radius : int):
+    """
+    Creates a numpy mask array with a circle region. Is used for masking image 
+    files to pull only the selected fiber region.
 
+    Parameters
+    ----------
+    sizex : in
+        DESCRIPTION.
+    sizey : TYPE
+        DESCRIPTION.
+    circlex : TYPE
+        DESCRIPTION.
+    circley : TYPE
+        DESCRIPTION.
+    radius : TYPE
+        DESCRIPTION.
 
-# Creates a numpy mask array with a circle region. Is used for masking image files to pull only the selected fiber region.
-def npy_circlemask(sizex,sizey,circlex,circley,radius):
+    Returns
+    -------
+    mask : np.array of numpy.bool_
+        Array of bool values to be used a mask over a specific circular region.
+
+    """
     mask = np.empty((sizex,sizey), dtype="bool_")
     for x in range(sizex):
         for y in range(sizey):
@@ -41,6 +75,29 @@ def npy_circlemask(sizex,sizey,circlex,circley,radius):
     return mask
 
 def photomimageprocess(directory,imgprefix,masks,**kwargs):
+    """
+    Process images within a directory using provided masks to extract signal traces.
+
+    Parameters
+    ----------
+    directory : str
+        Path to the directory containing the images.
+    imgprefix : str
+        prefix common to image filenames.
+    masks : list of numpy.ndarray
+        List containing masks for signal extraction.
+    **kwargs: Additional keyword arguments.
+      - waitbar (tkinter.ttk.Progressbar, optional): Tkinter Progressbar widget to display progress.
+      - textvar (tkinter.StringVar, optional): Tkinter StringVar to display text output.
+      - speedvar (tkinter.StringVar, optional): Tkinter StringVar to display processing speed.
+
+
+    Returns
+    -------
+    traces : list of numpy.ndarray
+        List containing signal traces extracted from the images.
+
+    """
     waitbar = kwargs.get("waitbar", None)
     txtout = kwargs.get("textvar", None)
     speedvar = kwargs.get("speedvar",None)
@@ -67,20 +124,68 @@ def photomimageprocess(directory,imgprefix,masks,**kwargs):
                 np.put(traces[j],i,avrgsig)
     return traces
 
-def subtractbackgroundsignal(traces): #accepts a list of 1 dimensional numpy arrays
-    #by convention, the first array in the list is the "Background" signal.
+def subtractbackgroundsignal(traces): 
+    """
+    Subtract background signal from each trace.
+
+    This function subtracts the background signal, represented by the first array in the list, 
+    from each subsequent array in the input list of traces.
+
+    Parameters
+    ----------
+    traces : list of numpy.ndarray
+        DESCRIPTION.
+
+    Returns
+    -------
+    subtrace : list of numpy.ndarray
+        List containing the traces data with background signal subtracted.
+
+    """
     subtrace = []
     for i in range(1,len(traces)):
         subtrace.append(np.subtract(traces[i],traces[0]))
     return subtrace
 
 def splittraces(traces,channels):
+    """
+    Split traces data into individual channels.
+
+    Parameters
+    ----------
+    traces : (list of numpy.ndarray)
+        List containing traces data..
+    channels : int
+        Number of channels in the traces data.
+
+    Returns
+    -------
+    splittraces : TYPE
+        DESCRIPTION.
+
+    """
     splittraces = []
     for i in range(len(traces)):
         for j in range(channels): splittraces.append(traces[i][j::channels])
     return splittraces
 
 def reshapetraces(traces,imgptrial):
+    """
+    Reshape traces data into a specified number of trials per image.
+    
+    Parameters
+    ----------
+    traces : (list of numpy.ndarray)
+        List containing traces data..
+    imgptrial : int
+        Number of trials per image.
+
+    Returns
+    -------
+    reshapedtraces : (list of numpy.ndarray)
+        List containing reshaped traces data with specified trials per image.
+
+    """
     reshapedtraces = []
     for i in range(len(traces)):
         size = np.prod(traces[i].shape)
@@ -91,7 +196,21 @@ def reshapetraces(traces,imgptrial):
 
 
 def loadimg(path):
+    """
+    Load an image from the specified path.
+
+    Parameters
+    ----------
+    path : str
+        pathlike object specifying location of image file.
+
+    Returns
+    -------
+    imarray : np.array
+        Array representing pixels of image.
+
+    """
     # img = tf.imread(path)
-    img = Image.open(path)
-    imarray = np.array(img)
+    with Image.open(path) as img:
+        imarray = np.array(img)
     return imarray
