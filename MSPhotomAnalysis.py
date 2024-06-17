@@ -4,8 +4,7 @@ signal traces
 """
 
 
-import os, numpy as np,tifffile as tf, time
-from matplotlib import pyplot
+import os, numpy as np,tifffile as time
 from PIL import Image
 
 def datetonum(date: str):

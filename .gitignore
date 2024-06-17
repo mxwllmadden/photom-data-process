@@ -3,3 +3,5 @@
 *.mat
 build/
 dist/
+*.spyproject*
+*__pycache__*
