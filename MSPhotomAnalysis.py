@@ -4,8 +4,9 @@ signal traces
 """
 
 
-import os, numpy as np,tifffile as time
+import os, numpy as np, time
 from PIL import Image
+from typing import List
 
 def datetonum(date: str):
     """
@@ -30,14 +31,13 @@ def datetonum(date: str):
     mdyextract = [date[0:2], date[3:5], date[6:8]]
     if all(x.isdigit() for x in mdyextract):
         mdyextract = [int(i) for i in mdyextract]
-        return ((mdyextract[1]) + (mdyextract[0]*32) + (mdyextract[2]*384))
-    else:
-        return False
+        return ((mdyextract[1]) + (mdyextract[0]*40) + (mdyextract[2]*500))
+    return False
     
 def numtodate(numcode: int):
     assert isinstance(numcode, int), 'numtodate accepts integers only'
-    y, d = divmod(numcode,384)
-    m, d = divmod(d,32)
+    y, d = divmod(numcode,500)
+    m, d = divmod(d,40)
     return (str(m).zfill(2)+"-"+str(d).zfill(2)+"-"+str(y).zfill(2))
 
 def npy_circlemask(sizex : int, sizey : int,circlex : int,circley : int,radius : int):
@@ -123,7 +123,7 @@ def photomimageprocess(directory,imgprefix,masks,**kwargs):
                 np.put(traces[j],i,avrgsig)
     return traces
 
-def subtractbackgroundsignal(traces): 
+def subtractbackgroundsignal(traces : List[np.ndarray]): 
     """
     Subtract background signal from each trace.
 
@@ -146,7 +146,7 @@ def subtractbackgroundsignal(traces):
         subtrace.append(np.subtract(traces[i],traces[0]))
     return subtrace
 
-def splittraces(traces,channels):
+def splittraces(traces,channels) -> List[np.ndarray]:
     """
     Split traces data into individual channels.
 

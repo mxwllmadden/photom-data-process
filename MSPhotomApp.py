@@ -23,6 +23,7 @@ from PIL import Image, ImageTk
 from dataclasses import dataclass
 from MSPhotomAnalysis import *
 from scipy.io import savemat
+from typing import List
 
 
 class Main():
@@ -262,10 +263,10 @@ class MSImageProcessGUI(tk.Frame):
                 print("BEGIN: "+i.split("/")[-1])
                 #STEP 3: use the masks we generated to pull the mean value for each region in each image
                 print("Extracting pixelvalues...")
-                traces = photomimageprocess(i,imgprefix,dataset.regionmasks,waitbar = self.runprog, textvar = self.shortprogstat,speedvar = self.speedout)
+                traces : List[np.ndarray] = photomimageprocess(i,imgprefix,dataset.regionmasks,waitbar = self.runprog, textvar = self.shortprogstat,speedvar = self.speedout)
                 #STEP 4: remove the mean of the background trace from all other traces
                 print("Subtracting background fiber value...")
-                traces = subtractbackgroundsignal(traces)
+                traces : List[np.ndarray] = subtractbackgroundsignal(traces)
                 #STEP 5: split each trace by channel
                 print("Splitting traces by channel...")
                 traces = splittraces(traces,dataset.channels)
