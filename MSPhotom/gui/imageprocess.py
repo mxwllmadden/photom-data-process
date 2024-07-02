@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun 26 16:18:44 2024
-
-@author: mbmad
+Image Processing related GUI elements
 """
 
 import tkinter as tk

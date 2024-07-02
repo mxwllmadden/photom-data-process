@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun 26 16:14:51 2024
-
-@author: mbmad
+Main GUI class. Define 'View' and define high level GUI appearance and provide
+methods for easy manipulation of the GUI.
 """
 
 import tkinter as tk

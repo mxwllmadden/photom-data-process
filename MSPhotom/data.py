@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jul  1 14:50:42 2024
-
-@author: mbmad
+Contains Dataclass that contains all photometry data and parameters and related
+functions for saving/accessing or general utilities for dealing with that data.
 """
 from typing import List, Tuple, Dict
 from dataclasses import dataclass

@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jul  1 14:49:29 2024
-
-@author: mbmad
+Data related GUI elements
 """
 
 import tkinter as tk

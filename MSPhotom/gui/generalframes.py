@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jun 27 13:15:19 2024
-
-@author: Maxwell
+Generalizable frames with reusability
 """
 from typing import List
 import tkinter as tk

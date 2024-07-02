@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun 26 16:23:23 2024
-
-@author: mbmad
+Load images and extract and organize trace data
 """
 from typing import List
 import os
