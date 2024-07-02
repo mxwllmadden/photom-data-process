@@ -1,6 +1,7 @@
 
 *.tif
 *.mat
+*.pkl
 build/
 dist/
 *.spyproject*
