@@ -8,6 +8,7 @@ Created on Wed Jun 26 16:14:51 2024
 import tkinter as tk
 from tkinter import ttk
 from MSPhotom.gui.imageprocess import ImageProcessTab, ImageParamTab, RegionSelection
+from MSPhotom.gui.regression import RegressionTab
 from MSPhotom.gui.data import DataTab
 from typing import List, Tuple
 from itertools import chain
@@ -26,9 +27,11 @@ class AppView:
         self.data_tab = DataTab(notebook)
         self.image_tab = ImageProcessTab(notebook)
         self.image_param_tab = ImageParamTab(notebook)
+        self.regression_tab = RegressionTab(notebook)
         notebook.add(self.data_tab, text = 'Inspect Data')
         notebook.add(self.image_tab, text='Image Processing (IP)')
         notebook.add(self.image_param_tab, text='Image Params (IP)')
+        notebook.add(self.regression_tab, text='Regression (RG)')
         
         # Create StateSets for easy manipulation of states
         self.state = 'All'  # Default state for the program
