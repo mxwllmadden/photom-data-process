@@ -11,12 +11,12 @@ from scipy import stats
 
 class Regression():
     def __init__(self, mat_data):
-        self.mat_data = scipy.io.loadmat('MRKPFCREV 28 Run 1.mat')
+        self.mat_data = scipy.io.loadmat('ms_rawdata_04-19-22_MRKPFC 5 Run 1')
 
-        self.corrsig_ch0 = np.array(self.mat_data['corrsig_ch0'])
-        self.corrsig_ch1 = np.array(self.mat_data['corrsig_ch1'])
-        self.sig1_ch0 = np.array(self.mat_data['sig1_ch0'])
-        self.sig1_ch1 = np.array(self.mat_data['sig1_ch1'])
+        self.corrsig_ch0 = np.array(self.mat_data['corrsigpr'])
+        self.corrsig_ch1 = np.array(self.mat_data['corrsigbr'])
+        self.sig1_ch0 = np.array(self.mat_data['sig1_pr'])
+        self.sig1_ch1 = np.array(self.mat_data['sig1_br'])
         self.sig1_str = np.array(self.mat_data['sig1_str'])
         self.trial_length = self.corrsig_ch0[0]
 
@@ -37,24 +37,29 @@ class Regression():
         signal_remainder = signal[:, trimmed_signal_length:num_trials]
 
         # Reshapes the arrays into properly binned data with the remaining trials in a new array
-        binned_signal = trimmed_signal.reshape((binsize * trial_length, num_binned_columns), order='F')
-        binned_remainder = signal_remainder.reshape((remainder_columns*trial_length, 1), order='F')
+        if binsize == 1:
+            binned_signal = signal
+            binned_remainder = signal
+        else:
+            binned_signal = trimmed_signal.reshape((binsize * trial_length, num_binned_columns), order='F')
+            binned_remainder = signal_remainder.reshape((remainder_columns * trial_length, 1), order='F')
 
         return binned_signal, binned_remainder
 
-    def channel_regression(self, controlresidual, testresidual):
+    def channel_regression(self, control_array, test_array):
+
         # Initializes a blank array of the same dimensions of the control residual
-        net_residual = np.zeros_like(controlresidual)
-        num_trials = controlresidual.shape[1]
+        net_residual = np.zeros_like(control_array)
+        num_trials = control_array.shape[1]
         # Perform regression to get residuals
         for i in range(num_trials):
             # If statement to prevent errors in linear regression calculation with all values = 0
-            if np.all(controlresidual[:, i] == controlresidual[0, i]):
-                net_residual[:, i] = np.zeros(testresidual[:, i].shape)
+            if np.all(control_array[:, i] == control_array[0, i]):
+                net_residual[:, i] = np.zeros(test_array[:, i].shape)
             else:
                 # Actual regression, we only care about the slope and intercept for residual calculations
-                slope, intercept, _, _, _ = stats.linregress(controlresidual[:, i], testresidual[:, i])
-                net_residual[:, i] = testresidual[:, i] - (slope * controlresidual[:, i] + intercept)
+                slope, intercept, _, _, _ = stats.linregress(control_array[:, i], test_array[:, i])
+                net_residual[:, i] = test_array[:, i] - (slope * control_array[:, i] + intercept)
         # Returns the resultant residuals between the control and test inputs
         return net_residual
 
@@ -83,13 +88,13 @@ class Regression():
 
         return studentized_residuals
 
-    def the_debininator(self, binned_signal, binned_signal_remainder, binsize):
+    def debin_me(self, binned_signal, binned_signal_remainder, binsize):
         # This converts the binned signals back to initial array structure
         # Calculations to get the correct array sizes to ensure proper concatenation
         bin_length = binned_signal.shape[0]
-        num_bintrials = binned_signal.shape[1]
+        num_bin_trials = binned_signal.shape[1]
         trial_length = bin_length // binsize
-        total_trials = num_bintrials * binsize
+        total_trials = num_bin_trials * binsize
         r_bin_length = binned_signal_remainder.shape[0]
         r_total_trials = r_bin_length // trial_length
 
@@ -97,20 +102,24 @@ class Regression():
         net_res_reshaped = binned_signal.reshape((trial_length, total_trials), order='F')
         net_res_reshaped_r = binned_signal_remainder.reshape((trial_length, r_total_trials), order='F')
         # Combines the remainder array back into the primary array.
-        net_res_debinned = np.concatenate([net_res_reshaped, net_res_reshaped_r], axis=1)
+        if binsize == 1:
+            net_res_debinned = binned_signal
+        else:
+            net_res_debinned = np.concatenate([net_res_reshaped, net_res_reshaped_r], axis=1)
         return net_res_debinned
 
+
 if __name__ == "__main__":
-    reg = Regression('MRKPFCREV 28 Run 1.mat')
+    reg = Regression('ms_rawdata_04-19-22_MRKPFC 5 Run 1')
 
-    corrsig_ch0_binned, corrsig_ch0_binned_r = reg.bin_trials(reg.corrsig_ch0, 10)
-    corrsig_ch1_binned, corrsig_ch1_binned_r = reg.bin_trials(reg.corrsig_ch1, 10)
-    sig1_ch0_binned, sig1_ch0_binned_r = reg.bin_trials(reg.sig1_ch0, 10)
-    sig1_ch1_binned, sig1_ch1_binned_r = reg.bin_trials(reg.sig1_ch1, 10)
+    corrsig_ch0_binned, corrsig_ch0_binned_r = reg.bin_trials(reg.corrsig_ch0, 1)
+    corrsig_ch1_binned, corrsig_ch1_binned_r = reg.bin_trials(reg.corrsig_ch1, 1)
+    sig1_ch0_binned, sig1_ch0_binned_r = reg.bin_trials(reg.sig1_ch0, 1)
+    sig1_ch1_binned, sig1_ch1_binned_r = reg.bin_trials(reg.sig1_ch1, 1)
 
-    ch0_res_binned = reg.channel_regression(corrsig_ch0_binned, sig1_ch0_binned)
+    ch0_res_binned = reg.channel_regression(corrsig_ch0_binned, sig1_ch0_binned) # Signal 1 Purple Residual
     ch0_res_binned_r = reg.channel_regression(corrsig_ch0_binned_r, sig1_ch0_binned_r)
-    ch1_res_binned = reg.channel_regression(corrsig_ch1_binned, sig1_ch1_binned)
+    ch1_res_binned = reg.channel_regression(corrsig_ch1_binned, sig1_ch1_binned) # Signal 1 Blue Residual
     ch1_res_binned_r = reg.channel_regression(corrsig_ch1_binned_r, sig1_ch1_binned_r)
 
     ch0_res_studentized_b = reg.studentize_residuals(ch0_res_binned)
@@ -124,10 +133,10 @@ if __name__ == "__main__":
     net_res_b_s = reg.studentize_residuals(net_res_b)
     net_res_b_s_r = reg.studentize_residuals(net_res_b_r)
 
-    net_res_debinned = reg.the_debininator(net_res_b_s, net_res_b_s_r, 10)
+    net_res_debinned = reg.debin_me(net_res_b_s, net_res_b_s_r, 1)
 
     # Create a dictionary with variable names and data
-    data_dict = dict(net_res_b_s=net_res_b_s, net_res_b_s_r=net_res_b_s_r, net_res_debinned = net_res_debinned)
+    data_dict = dict(net_res_debinned = net_res_debinned, ch0_res_binned = ch0_res_binned, )
 
     # Save the dictionary to a .mat file
-    scipy.io.savemat('residuals.mat', data_dict)
+    scipy.io.savemat('residuals2.mat', data_dict)
