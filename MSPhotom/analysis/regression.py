@@ -10,7 +10,16 @@ import scipy.io
 from typing import List
 import numpy as np
 from scipy import stats
+import imageprocess
+from dataclasses import dataclass
+import pickle
 
+from MSPhotom.data import MSPData
+
+with open('exampledata.pkl', 'rb') as f:
+    loaded_data = pickle.load(f)
+#print(str(loaded_data))
+binsize = 10
 
 def regression_main(data, controller=None):
     """
@@ -39,25 +48,58 @@ def regression_main(data, controller=None):
                 
         RETURN NEW REGRESSED SIGNALS FOR THIS RUN
     """
-    #needs to handle multiple signals
-    signal = data.traces_by_run_signal_trial
-    binsize = data.binsize
-    for ch in range(data.num_interpolated_channels):
-        # If it is the first signal in the channel, assign it to the correction fiber
-        if data.fiber_labels[0]:
-            corrsig_binned, corrsig_binned_r = bin_trials(signal, binsize)
-        else:
-            for i in range(data.fiber_labels):
-                binned_signal, binned_signal_r = bin_trials(signal, binsize)
-        for ch in range(data.num_interpolated_channels):
-            res_studentized_b = studentized_residual_regression(corrsig_binned, binned_signal)
-            res_studentized_b_r = studentized_residual_regression(corrsig_binned_r, binned_signal_r)
-    for i in len(signal):
-        studentized_residual_regression()
 
-    for ch in range(data.num_interpolated_channels):
-        studentized_residual_regression(ch0_res_studentized_b, )
-        studentized_residual_regression(ch0_res_studentized_b_r, )
+    all_regressed_signals = []
+    traces_by_run = data.traces_by_run_signal_trial
+
+    # Iterate through each run in the nested dictionary
+    for run_key, run_dict in traces_by_run.items():
+        #print(f"Processing run: {run_key}")
+        # Assign the nested dictionary (traces within each run) to `traces`
+        traces = run_dict
+
+        regressed_signals = regression_func(traces)
+        all_regressed_signals.append(regressed_signals)
+
+    data.regressed_signals = all_regressed_signals
+    if controller is not None:
+        controller.update_data(data)
+    return traces
+
+def regression_func(traces):
+    signals = []
+    channels = []
+    for key, array in traces.items():
+        key_parts = key.split('_')
+        #print(f"Key parts: {key_parts}, Array: {array}")
+        # Append key parts to respective lists
+        signals.append(key_parts[1])
+        channels.append(key_parts[2])
+
+    unique_channels = set(channels)
+    unique_signals = set(signals)
+    #print(unique_signals)
+    #print(unique_channels)
+    for channel in unique_channels:
+        for signal in unique_signals:
+            if signal == 'corrsig':
+                corrsig_array = None
+                for key, array in traces.items():
+                    key_parts = key.split('_')
+                    if key_parts[1] == 'corrsig' and key_parts[2] == channel:
+                        corrsig_array = array
+                        corrsig_binned, corrsig_binned_r = bin_trials(corrsig_array, binsize)
+                        print(corrsig_binned.shape)
+                continue
+            else:
+                signal_array = None
+                for key, array in traces.items():
+                    key_parts = key.split('_')
+                    if key_parts[1] == signal and key_parts[2] == channel:
+                        signal_array = array
+                binned_signal, binned_signal_r = bin_trials(signal_array, binsize)
+
+    return traces
 
 
 
@@ -147,8 +189,8 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
 
 
 if __name__ == "__main__":
-    reg = Regression('MRKPFCREV 28 Run 1.mat')
-
+    # reg = Regression('MRKPFCREV 28 Run 1.mat')
+    regression_main(loaded_data)
     # Some notes on variable naming
     # ch0 = Purple/Isosbestic and ch1 = Blue/Dependent Color
     # _r = remainder trials binned together
@@ -156,25 +198,25 @@ if __name__ == "__main__":
     # _b = Binned
     # _s = Studentized Residual
     # Currently does not deal with multiple signals. Can be easily added
-    corrsig_ch0_binned, corrsig_ch0_binned_r = reg.bin_trials(reg.corrsig_ch0, 5)
-    corrsig_ch1_binned, corrsig_ch1_binned_r = reg.bin_trials(reg.corrsig_ch1, 5)
-    sig1_ch0_binned, sig1_ch0_binned_r = reg.bin_trials(reg.sig1_ch0, 5)
-    sig1_ch1_binned, sig1_ch1_binned_r = reg.bin_trials(reg.sig1_ch1, 5)
+    # corrsig_ch0_binned, corrsig_ch0_binned_r = reg.bin_trials(reg.corrsig_ch0, 5)
+    # corrsig_ch1_binned, corrsig_ch1_binned_r = reg.bin_trials(reg.corrsig_ch1, 5)
+    # sig1_ch0_binned, sig1_ch0_binned_r = reg.bin_trials(reg.sig1_ch0, 5)
+    # sig1_ch1_binned, sig1_ch1_binned_r = reg.bin_trials(reg.sig1_ch1, 5)
 
-    ch0_res_studentized_b = reg.studentized_residual_regression(corrsig_ch0_binned,
-                                                                sig1_ch0_binned)  # Signal 1 Purple Residual
-    ch0_res_studentized_b_r = reg.studentized_residual_regression(corrsig_ch0_binned_r, sig1_ch0_binned_r)
-    ch1_res_studentized_b = reg.studentized_residual_regression(corrsig_ch1_binned,
-                                                                sig1_ch1_binned)  # Signal 1 Blue Residual
-    ch1_res_studentized_b_r = reg.studentized_residual_regression(corrsig_ch1_binned_r, sig1_ch1_binned_r)
+    # ch0_res_studentized_b = reg.studentized_residual_regression(corrsig_ch0_binned,
+    #                                                             sig1_ch0_binned)  # Signal 1 Purple Residual
+    # ch0_res_studentized_b_r = reg.studentized_residual_regression(corrsig_ch0_binned_r, sig1_ch0_binned_r)
+    # ch1_res_studentized_b = reg.studentized_residual_regression(corrsig_ch1_binned,
+    #                                                             sig1_ch1_binned)  # Signal 1 Blue Residual
+    # ch1_res_studentized_b_r = reg.studentized_residual_regression(corrsig_ch1_binned_r, sig1_ch1_binned_r)
 
-    net_res_b_s = reg.studentized_residual_regression(ch0_res_studentized_b, ch1_res_studentized_b)  # Net Residual
-    net_res_b_s_r = reg.studentized_residual_regression(ch0_res_studentized_b_r, ch1_res_studentized_b_r)
+    # net_res_b_s = reg.studentized_residual_regression(ch0_res_studentized_b, ch1_res_studentized_b)  # Net Residual
+    # net_res_b_s_r = reg.studentized_residual_regression(ch0_res_studentized_b_r, ch1_res_studentized_b_r)
 
-    net_res_debinned = reg.debin_me(net_res_b_s, net_res_b_s_r, 5)
+    # net_res_debinned = reg.debin_me(net_res_b_s, net_res_b_s_r, 5)
 
     # Create a dictionary with variable names and data
-    data_dict = dict(net_res_debinned=net_res_debinned)
+    # data_dict = dict(net_res_debinned=net_res_debinned)
 
     # Save the dictionary to a .mat file
-    scipy.io.savemat('residuals.mat', data_dict)
+    # scipy.io.savemat('residuals.mat', data_dict)
