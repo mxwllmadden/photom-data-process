@@ -80,6 +80,7 @@ class MSPApp:
         img_per_trial_per_channel = self.view.image_param_tab.img_per_trial_per_channel
         num_interpolated_channels = self.view.image_param_tab.num_interpolated_channels
         roi_names = [var.get() for var in self.view.image_param_tab.roi_names]
+        roi_names = [name.replace('_', '') for name in roi_names]
         
         # Check to ensure user input is appropriate
         if not os.path.exists(target_directory):
@@ -368,7 +369,6 @@ def numtodate(numcode: int):
     y, d = divmod(numcode,500)
     m, d = divmod(d,40)
     return (str(m).zfill(2)+"-"+str(d).zfill(2)+"-"+str(y).zfill(2))
-
 
 if __name__ == '__main__':
     MSPApp()
