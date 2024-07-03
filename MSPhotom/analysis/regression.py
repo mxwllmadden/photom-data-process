@@ -66,7 +66,7 @@ def regression_main(data, controller=None):
         controller.update_data(data)
     return traces
 
-def regression_func(traces):
+def bin_initation(traces):
     signals = []
     channels = []
     for key, array in traces.items():
@@ -76,32 +76,36 @@ def regression_func(traces):
         signals.append(key_parts[1])
         channels.append(key_parts[2])
 
-    unique_channels = set(channels)
-    unique_signals = set(signals)
-    #print(unique_signals)
-    #print(unique_channels)
+    unique_channels = unique_list(channels)
+    unique_signals = unique_list(signals)
+    print(unique_signals)
+    print(unique_channels)
     for channel in unique_channels:
         for signal in unique_signals:
             if signal == 'corrsig':
-                corrsig_array = None
                 for key, array in traces.items():
                     key_parts = key.split('_')
                     if key_parts[1] == 'corrsig' and key_parts[2] == channel:
-                        corrsig_array = array
+                        corrsig_array = array.transpose()
                         corrsig_binned, corrsig_binned_r = bin_trials(corrsig_array, binsize)
-                        print(corrsig_binned.shape)
-                continue
             else:
-                signal_array = None
                 for key, array in traces.items():
                     key_parts = key.split('_')
                     if key_parts[1] == signal and key_parts[2] == channel:
-                        signal_array = array
-                binned_signal, binned_signal_r = bin_trials(signal_array, binsize)
+                        signal_array = array.transpose()
+                        binned_signal, binned_signal_r = bin_trials(signal_array, binsize)
+        region_studentized_residual = studentized_residual_regression(corrsig_binned, binned_signal)
+
+
 
     return traces
 
-
+def unique_list(iterable):
+    new_list = []
+    for obj in iterable:
+        if obj not in new_list:
+            new_list.append(obj)
+    return new_list
 
 
 def bin_trials(signal, binsize):
