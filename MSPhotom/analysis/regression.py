@@ -29,33 +29,6 @@ type run_signal_dictionary = Dict[str, signal_dictionary]
 
 
 def regression_main(data: MSPData, controller=None):
-    """
-    FUNCTION1-MAIN
-        FOR EACH RUN_SIGNALS IN TRACES:
-            REGRESSED_SIGNALS = FUNC_REGRESS(RUN_SIGNALS)
-        ABOVE GIVES DICT OF TRACES (key=RUN, value=EACH TRACE)
-        ENTER INTO DATA OBJECT
-
-    FUNCTION2-REGRESS INSIDE EACH RUN(RUN_SIGNALS : DICT)
-        GET LIST OF REGIONS
-        GET LIST OF CHANNELS
-        FOR CH IN CHANNELS
-            FOR REG IN REGIONS(NOT INCLUDING CORRSIG):
-                bare array rowxcol (order might be different) trialxtime -> binxtime
-                REGRESS CORRSIG_CH FROM REGION_CH
-                (1 - BIN TRIALS ACCORDING TO BINSIZE)
-                (2 - RUN STANDARD REGRESSION STUFF, including studentization etc etc)
-        ABOVE GIVES traces by region by channel (corr_sig is gone)
-        FOR REGION:
-            FOR CH IN REGION (NOT INCLUDING 0):
-                REGRESS REGION_CH0 from REGION_CH_N
-                (1 - RUN STANDARD REGRESSION STUFF)
-                (2 - UNBIN TRIALS ACCORDING TO BINSIZE)
-        ABOVE GIVES 1 trace per region
-
-        RETURN NEW REGRESSED SIGNALS FOR THIS RUN
-    """
-
     all_regressed_signals = []
     traces_by_run = data.traces_by_run_signal_trial
 
