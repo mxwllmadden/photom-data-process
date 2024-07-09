@@ -2,28 +2,40 @@
 """
 Perform Studentized Residual Regression from organized trace data
 """
-import tkinter as tk, os, dataclasses, threading, sys
-from tkinter import ttk, filedialog
-from PIL import Image, ImageTk
-from dataclasses import dataclass
-import scipy.io
-from typing import List
+
+from typing import Dict
 import numpy as np
 from scipy import stats
-import imageprocess
-from dataclasses import dataclass
 import pickle
 
 from MSPhotom.data import MSPData
 
-def regression_main(data, controller=None):
+"""
+TODO - 7/9/24 - MM
+
+1- Docstrings for all functions
+
+2- unit tests for all functions
+
+3- Mockup VIEW (gui)
+
+4- Integrate VIEW with CONTROLLER and allow main function (regression_main)
+to interact/alter view for progressbar or similar.
+"""
+
+
+type signal_dictionary = Dict[str, np.ndarray]
+type run_signal_dictionary = Dict[str, signal_dictionary]
+
+
+def regression_main(data: MSPData, controller=None):
     """
     FUNCTION1-MAIN
         FOR EACH RUN_SIGNALS IN TRACES:
             REGRESSED_SIGNALS = FUNC_REGRESS(RUN_SIGNALS)
         ABOVE GIVES DICT OF TRACES (key=RUN, value=EACH TRACE)
         ENTER INTO DATA OBJECT
-        
+
     FUNCTION2-REGRESS INSIDE EACH RUN(RUN_SIGNALS : DICT)
         GET LIST OF REGIONS
         GET LIST OF CHANNELS
@@ -40,7 +52,7 @@ def regression_main(data, controller=None):
                 (1 - RUN STANDARD REGRESSION STUFF)
                 (2 - UNBIN TRIALS ACCORDING TO BINSIZE)
         ABOVE GIVES 1 trace per region
-                
+
         RETURN NEW REGRESSED SIGNALS FOR THIS RUN
     """
 
@@ -49,11 +61,12 @@ def regression_main(data, controller=None):
 
     # Iterate through each run in the nested dictionary
     for run_key, run_dict in traces_by_run.items():
-        #print(f"Processing run: {run_key}")
+        # print(f"Processing run: {run_key}")
         # Assign the nested dictionary (traces within each run) to `traces`
         traces = run_dict
 
-        regressed_signals = regression_func(traces)
+        regressed_signals = regression_func(
+            traces)  # CHANGE THIS TO dict_run_signal
         all_regressed_signals.append(regressed_signals)
 
     data.regressed_signals = all_regressed_signals
@@ -61,15 +74,16 @@ def regression_main(data, controller=None):
         controller.update_data(data)
     return all_regressed_signals
 
-def regression_func(traces):
-    #Gathers all information needed to do regression
+
+def regression_func(traces) -> signal_dictionary:
+    # Gathers all information needed to do regression
     region_names = [key.split('_')[1] for key in traces.keys()
                     if key.split('_')[1] != 'corrsig']
 
     channel_names = [key.split('_')[2] for key in traces.keys()]
 
     channel_names_ch0_removed = [key.split('_')[2] for key in traces.keys()
-                                if key.split('_')[2] != 'ch0']
+                                 if key.split('_')[2] != 'ch0']
 
     # Removes duplicate channel and region names
     unique_channels = unique_list(channel_names)
@@ -97,33 +111,47 @@ def regression_func(traces):
             target_trace = np.transpose(target_trace)
             # Bins the target trace by binsize
             # _b = binned & _r = remainder trials
-            target_trace_b, target_trace_b_r = bin_trials(target_trace, binsize)
+            target_trace_b, target_trace_b_r = bin_trials(
+                target_trace, binsize)
             # This Calculates the studentized residuals which regresses the correction fiber out
-            res_studentized_b = studentized_residual_regression(control_trace_b,target_trace_b)
-            res_studentized_b_r = studentized_residual_regression(control_trace_b_r, target_trace_b_r)
+            res_studentized_b = studentized_residual_regression(
+                control_trace_b, target_trace_b)
+            res_studentized_b_r = studentized_residual_regression(
+                control_trace_b_r, target_trace_b_r)
             # Saves the studentized residuals to a dictionary for further regression
-            regions_correction_fiber_regressed_b[f'{region}_{channel}_b'] = res_studentized_b
-            regions_correction_fiber_regressed_b_r[f'{region}_{channel}_b_r'] = res_studentized_b_r
+            regions_correction_fiber_regressed_b[f'{
+                region}_{channel}_b'] = res_studentized_b
+            regions_correction_fiber_regressed_b_r[f'{
+                region}_{channel}_b_r'] = res_studentized_b_r
 
     # This for loop regresses ch0 out to output residuals for each region by channel
     for region in unique_regions:
         # Assigns ch0 as the control channel to be regressed out
-        control_channel_b = regions_correction_fiber_regressed_b[f'{region}_ch0_b']
-        control_channel_b_r = regions_correction_fiber_regressed_b_r[f'{region}_ch0_b_r']
+        control_channel_b = regions_correction_fiber_regressed_b[f'{
+            region}_ch0_b']
+        control_channel_b_r = regions_correction_fiber_regressed_b_r[f'{
+            region}_ch0_b_r']
 
         for channel in unique_channels_ch0_removed:
             # Identifies the target channel for regression
-            target_channel_b = regions_correction_fiber_regressed_b[f'{region}_{channel}_b']
-            target_channel_b_r = regions_correction_fiber_regressed_b_r[f'{region}_{channel}_b_r']
+            target_channel_b = regions_correction_fiber_regressed_b[f'{
+                region}_{channel}_b']
+            target_channel_b_r = regions_correction_fiber_regressed_b_r[f'{
+                region}_{channel}_b_r']
             # Regresses the control channel from the target channel
-            res_studentized_b = studentized_residual_regression(control_channel_b,target_channel_b)
-            res_studentized_b_r = studentized_residual_regression(control_channel_b_r, target_channel_b_r)
+            res_studentized_b = studentized_residual_regression(
+                control_channel_b, target_channel_b)
+            res_studentized_b_r = studentized_residual_regression(
+                control_channel_b_r, target_channel_b_r)
             # Debins the residuals to create a unified dataset
-            debinned_region_residuals = debin_me(res_studentized_b, res_studentized_b_r, binsize)
+            debinned_region_residuals = debin_me(
+                res_studentized_b, res_studentized_b_r, binsize)
             # Saves the output residuals into a dictionary
-            region_residuals_ch0_regressed[f'{region}_{channel}'] = debinned_region_residuals
+            region_residuals_ch0_regressed[f'{region}_{
+                channel}'] = debinned_region_residuals
 
     return region_residuals_ch0_regressed
+
 
 def unique_list(iterable):
     new_list = []
@@ -156,8 +184,10 @@ def bin_trials(signal, binsize):
         binned_remainder = signal
     else:
         # This step might be unnecessary but it confirms the arrays are the right size
-        binned_signal = trimmed_signal.reshape((binsize * trial_length, num_binned_columns), order='F')
-        binned_remainder = signal_remainder.reshape((remainder_columns * trial_length, 1), order='F')
+        binned_signal = trimmed_signal.reshape(
+            (binsize * trial_length, num_binned_columns), order='F')
+        binned_remainder = signal_remainder.reshape(
+            (remainder_columns * trial_length, 1), order='F')
 
     return binned_signal, binned_remainder
 
@@ -165,7 +195,8 @@ def bin_trials(signal, binsize):
 def studentized_residual_regression(X, Y):
     # Does regression and studentization in 1 step because original arrays are needed for studentization
     num_trials = X.shape[1]
-    studentized_residuals = np.zeros_like(Y)  # Initialize array to store studentized residuals
+    # Initialize array to store studentized residuals
+    studentized_residuals = np.zeros_like(Y)
 
     # Loops through all the trials
     for i in range(num_trials):
@@ -211,10 +242,14 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
         net_res_debinned = binned_signal
     else:
         # Reshapes the arrays to have equal row lengths equal to the initial trial lengths
-        net_res_reshaped = binned_signal.reshape((trial_length, total_trials), order='F')
-        net_res_reshaped_r = binned_signal_remainder.reshape((trial_length, r_total_trials), order='F')
-        net_res_debinned = np.concatenate([net_res_reshaped, net_res_reshaped_r], axis=1)
+        net_res_reshaped = binned_signal.reshape(
+            (trial_length, total_trials), order='F')
+        net_res_reshaped_r = binned_signal_remainder.reshape(
+            (trial_length, r_total_trials), order='F')
+        net_res_debinned = np.concatenate(
+            [net_res_reshaped, net_res_reshaped_r], axis=1)
     return net_res_debinned
+
 
 if __name__ == "__main__":
     with open('exampledata.pkl', 'rb') as f:
