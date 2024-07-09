@@ -16,11 +16,6 @@ import pickle
 
 from MSPhotom.data import MSPData
 
-with open('exampledata.pkl', 'rb') as f:
-    loaded_data = pickle.load(f)
-#print(str(loaded_data))
-binsize = 10
-
 def regression_main(data, controller=None):
     """
     FUNCTION1-MAIN
@@ -64,41 +59,71 @@ def regression_main(data, controller=None):
     data.regressed_signals = all_regressed_signals
     if controller is not None:
         controller.update_data(data)
-    return traces
+    return all_regressed_signals
 
-def bin_initation(traces):
-    signals = []
-    channels = []
-    for key, array in traces.items():
-        key_parts = key.split('_')
-        #print(f"Key parts: {key_parts}, Array: {array}")
-        # Append key parts to respective lists
-        signals.append(key_parts[1])
-        channels.append(key_parts[2])
+def regression_func(traces):
+    #Gathers all information needed to do regression
+    region_names = [key.split('_')[1] for key in traces.keys()
+                    if key.split('_')[1] != 'corrsig']
 
-    unique_channels = unique_list(channels)
-    unique_signals = unique_list(signals)
-    print(unique_signals)
-    print(unique_channels)
+    channel_names = [key.split('_')[2] for key in traces.keys()]
+
+    channel_names_ch0_removed = [key.split('_')[2] for key in traces.keys()
+                                if key.split('_')[2] != 'ch0']
+
+    # Removes duplicate channel and region names
+    unique_channels = unique_list(channel_names)
+    unique_regions = unique_list(region_names)
+    unique_channels_ch0_removed = unique_list(channel_names_ch0_removed)
+
+    # Initializes blank dictionaries to be filled by regression
+    regions_correction_fiber_regressed_b = {}
+    regions_correction_fiber_regressed_b_r = {}
+    region_residuals_ch0_regressed = {}
+
+    # This first for loop regresses the correction fiber out
     for channel in unique_channels:
-        for signal in unique_signals:
-            if signal == 'corrsig':
-                for key, array in traces.items():
-                    key_parts = key.split('_')
-                    if key_parts[1] == 'corrsig' and key_parts[2] == channel:
-                        corrsig_array = array.transpose()
-                        corrsig_binned, corrsig_binned_r = bin_trials(corrsig_array, binsize)
-            else:
-                for key, array in traces.items():
-                    key_parts = key.split('_')
-                    if key_parts[1] == signal and key_parts[2] == channel:
-                        signal_array = array.transpose()
-                        binned_signal, binned_signal_r = bin_trials(signal_array, binsize)
-        region_studentized_residual = studentized_residual_regression(corrsig_binned, binned_signal)
+        # Assigns the control trace
+        control_trace = traces[f'sig_corrsig_{channel}']
+        # Transposes the array to have trials as columns instead of rows
+        control_trace = np.transpose(control_trace)
+        # bins the control trace
+        control_trace_b, control_trace_b_r = bin_trials(control_trace, binsize)
 
+        # For each unique region, the correction fiber is regressed out of the binned traces
+        for region in unique_regions:
+            # Assigns the target trace for regression
+            target_trace = traces[f'sig_{region}_{channel}']
+            target_trace = np.transpose(target_trace)
+            # Bins the target trace by binsize
+            # _b = binned & _r = remainder trials
+            target_trace_b, target_trace_b_r = bin_trials(target_trace, binsize)
+            # This Calculates the studentized residuals which regresses the correction fiber out
+            res_studentized_b = studentized_residual_regression(control_trace_b,target_trace_b)
+            res_studentized_b_r = studentized_residual_regression(control_trace_b_r, target_trace_b_r)
+            # Saves the studentized residuals to a dictionary for further regression
+            regions_correction_fiber_regressed_b[f'{region}_{channel}_b'] = res_studentized_b
+            regions_correction_fiber_regressed_b_r[f'{region}_{channel}_b_r'] = res_studentized_b_r
 
+    # This for loop regresses ch0 out to output residuals for each region by channel
+    for region in unique_regions:
+        # Assigns ch0 as the control channel to be regressed out
+        control_channel_b = regions_correction_fiber_regressed_b[f'{region}_ch0_b']
+        control_channel_b_r = regions_correction_fiber_regressed_b_r[f'{region}_ch0_b_r']
 
-    return traces
+        for channel in unique_channels_ch0_removed:
+            # Identifies the target channel for regression
+            target_channel_b = regions_correction_fiber_regressed_b[f'{region}_{channel}_b']
+            target_channel_b_r = regions_correction_fiber_regressed_b_r[f'{region}_{channel}_b_r']
+            # Regresses the control channel from the target channel
+            res_studentized_b = studentized_residual_regression(control_channel_b,target_channel_b)
+            res_studentized_b_r = studentized_residual_regression(control_channel_b_r, target_channel_b_r)
+            # Debins the residuals to create a unified dataset
+            debinned_region_residuals = debin_me(res_studentized_b, res_studentized_b_r, binsize)
+            # Saves the output residuals into a dictionary
+            region_residuals_ch0_regressed[f'{region}_{channel}'] = debinned_region_residuals
+
+    return region_residuals_ch0_regressed
 
 def unique_list(iterable):
     new_list = []
@@ -191,10 +216,15 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
         net_res_debinned = np.concatenate([net_res_reshaped, net_res_reshaped_r], axis=1)
     return net_res_debinned
 
-
 if __name__ == "__main__":
-    # reg = Regression('MRKPFCREV 28 Run 1.mat')
+    with open('exampledata.pkl', 'rb') as f:
+        loaded_data = pickle.load(f)
+    binsize = 10
     regression_main(loaded_data)
+
+# if __name__ == "__main__":
+    # reg = Regression('MRKPFCREV 28 Run 1.mat')
+    # regression_main(loaded_data)
     # Some notes on variable naming
     # ch0 = Purple/Isosbestic and ch1 = Blue/Dependent Color
     # _r = remainder trials binned together
