@@ -4,6 +4,8 @@ This application takes raw image files produced by the Multisite Photometry Syst
 
 This application also allows for performance of signal regression steps to produce deltaF/F or z-score traces, as well as alignment with behavioral data/events.
 
+Specifications and guides to the hardware are provided in **docs**, and a basic script for arduino for camera and laser control is provided in **hardwarecontrol**.
+
 ## Deployment
 This code can be run either using the provided conda enviroment or using the executable release (generated with pyinstaller). You may generate your own binary using the pyinstaller command below.
 ```
