@@ -11,6 +11,8 @@ import os
 from PIL import Image, ImageTk
 import threading
 from typing import List, Tuple
+from matplotlib import pyplot as pp
+import numpy as np
 
 from MSPhotom.data import MSPData, DataManager
 from MSPhotom.gui.main import AppView
@@ -175,7 +177,13 @@ class MSPApp:
         imprefix = self.data.img_prefix
         impath = f'{frpath}/{imprefix}_2.tif'
         with Image.open(impath) as im:
-            return ImageTk.PhotoImage(im)
+            cmap = pp.get_cmap('nipy_spectral')
+            np_im = np.asarray(im)
+            np_im = np_im - np_im.min()
+            np_im = np_im / np_im.max()
+            im_array : np.ndarray = np.asarray(cmap(im))*255
+            im_array : np.ndarray = im_array.astype(np.uint8)[:,:,:3]
+            return ImageTk.PhotoImage(Image.fromarray(im_array, mode='RGB'))
 
     def region_selection_prematureclose(self, event):
         """

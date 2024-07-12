@@ -130,9 +130,9 @@ def npy_circlemask(sizex : int, sizey : int,circlex : int,circley : int,radius :
     for x in range(sizex):
         for y in range(sizey):
             if ((x-circlex)**2 + (y-circley)**2)**(0.5) <= radius:
-                mask[x,y] = 1
+                mask[y,x] = 1
             else:
-                mask[x,y] = 0
+                mask[y,x] = 0
     return mask
 
 def subtractbackgroundsignal(traces : List[np.ndarray]): 
