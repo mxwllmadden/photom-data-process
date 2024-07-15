@@ -11,60 +11,77 @@ class RegressionTab(tk.Frame):
 
         # Organizational Canvas
         buttoncanvas = tk.Canvas(self)
-        buttoncanvas.grid(column=2, row=9, padx=10, pady=0, sticky="se")
-        graphcanvas = tk.Canvas(self)
-        graphcanvas.grid(column=0, row=8, padx=10, pady=10, sticky="nw", columnspan=3, rowspan=2)
+        buttoncanvas.grid(column=4, row=0, padx=(0,10), pady=0, sticky="e", rowspan=4)
+        graphcanvas = tk.Canvas(self, bg="white", width=320, height=320)
+        graphcanvas.grid(column=0, row=8, padx=(10,0), pady=10, sticky="nw", columnspan=4, rowspan=2)
+        graphbuttoncanvas = tk.Canvas(self, height=320)
+        graphbuttoncanvas.grid(column=4, row=8, padx=(0,10), pady=10, sticky="w", columnspan=1, rowspan=8)
 
         # Buttons
-        self.loadbutton = tk.Button(buttoncanvas, text="Load Runs")
-        self.regselbutton = tk.Button(buttoncanvas, text="Select Regions")
-        self.processbutton = tk.Button(buttoncanvas, text="PROCESS!!!!!")
+        self.loadbutton = tk.Button(buttoncanvas, text="Set Bin")
+        self.regress_button = tk.Button(buttoncanvas, text="REGRESS!!!")
         self.reset_button = tk.Button(buttoncanvas, text="RESET")
+        self.rnd_channel_button = tk.Button(graphbuttoncanvas, text="Corrsig Test Graph")
+        self.rnd_region_button = tk.Button(graphbuttoncanvas, text="Ch0 Test Graph")
+        self.reset_graph_button = tk.Button(graphbuttoncanvas, text="Reset Graph")
 
-        self.loadbutton.grid(column=0, row=0, padx=0, pady=(0, 10), sticky="se")
-        self.regselbutton.grid(column=0, row=1, padx=0, pady=(0, 10), sticky="se")
-        self.processbutton.grid(column=0, row=2, padx=0, pady=(0, 10), sticky="se")
+        self.loadbutton.grid(column=0, row=1, padx=0, pady=(0, 10), sticky="se")
+        self.regress_button.grid(column=0, row=2, padx=0, pady=(0, 10), sticky="se")
         self.reset_button.grid(column=0, row=3, padx=2, pady=(0, 10), sticky="se")
 
-        self.regselbutton["state"] = "disabled"
-        self.processbutton["state"] = "disabled"
+        self.rnd_channel_button.grid(column=0, row=6, padx=0, pady=(0, 10), sticky="sw")
+        self.rnd_region_button.grid(column=0, row=7, padx=0, pady=(0, 10), sticky="sw")
+        self.reset_graph_button.grid(column=0, row=8, padx=0, pady=(0, 10), sticky="sw")
+
+        self.regress_button["state"] = "disabled"
+        self.rnd_channel_button["state"] = "disabled"
+        self.rnd_region_button["state"] = "disabled"
 
         # String Variables and Defaults
-        self.topdirectory = tk.StringVar()
         self.bin_size = tk.StringVar()
-        self.date_end = tk.StringVar()
-        self.ani_prefix = tk.StringVar()
-        self.ani_start = tk.StringVar()
-        self.ani_end = tk.StringVar()
-
-        self.topdirectory.set("Use button to right")
+        self.splits1 = tk.StringVar()
+        self.splits2 = tk.StringVar()
+        self.ch_select = tk.StringVar()
+        self.reg_select = tk.StringVar()
+        self.trial_select = tk.StringVar()
+        self.splits1.set("Not")
+        self.splits2.set("Implemented")
         self.bin_size.set("1")
-        self.date_end.set("05-17-43")
-        self.ani_prefix.set("MRKPFCREV")
-        self.ani_start.set("1")
-        self.ani_end.set("40")
+        self.ch_select.set("Ch1")
+        self.reg_select.set("PTA")
+        self.trial_select.set("10")
 
         # Entry Fields
-        tk.Entry(self, width=50, textvariable=self.topdirectory).grid(column=0, row=1, columnspan=2, padx=(10, 0),
-                                                                      pady=(0, 10), sticky="w")
-        tk.Entry(self, width=18, textvariable=self.bin_size).grid(column=0, row=4, padx=10, pady=(0, 10), sticky="w")
-        tk.Entry(self, width=18, textvariable=self.ani_prefix).grid(column=0, row=7, padx=10, pady=(0, 10), sticky="w")
-        tk.Entry(self, width=18, textvariable=self.ani_start).grid(column=1, row=7, padx=10, pady=(0, 10), sticky="w")
-        tk.Entry(self, width=18, textvariable=self.ani_end).grid(column=2, row=7, padx=10, pady=(0, 10), sticky="w")
+        tk.Label(self, width=15, text="Total Runs", anchor='w').grid(column=0, row=0, padx=(10, 0), pady=(4, 0), sticky="sw")
+        tk.Label(self, width=15, text="Med # Trials", anchor='w').grid(column=1, row=0, padx=(10, 0), pady=(4, 0), sticky="sw")
+        tk.Label(self, width=15, text="# Regions", anchor='w').grid(column=2, row=0, padx=(10, 0),
+                                                                               pady=(4, 0), sticky="sw")
 
+        tk.Label(self, width=13, text="Temp Runs", anchor='w', bg='white').grid(column=0, row=1, padx=7, pady=0, sticky="nw")
+        tk.Label(self, width=13, text="Temp Trials", anchor='w', bg='white').grid(column=1, row=1, padx=7, pady=0, sticky="nw")
+        tk.Label(self, width=13, text="Temp Regions", anchor='w', bg='white').grid(column=2, row=1, padx=(7,0),
+                                                                               pady=0, sticky="nw")
+        tk.Entry(self, width=15, textvariable=self.bin_size).grid(column=0, row=3, padx=7, pady=(0, 10), sticky="nw")
+        tk.Entry(self, width=15, textvariable=self.splits1).grid(column=1, row=3, padx=7, pady=(0, 10), sticky="nw")
+        tk.Entry(self, width=15, textvariable=self.splits2).grid(column=2, row=3, padx=(7,0), pady=(0, 10), sticky="nw")
         # Static Labels
-        tk.Label(self, text="Dataset Folder Path", anchor="w", width=20).grid(column=0, row=0, padx=10, pady=(10, 0))
-        tk.Label(self, text="Bin Size", anchor="w", width=20).grid(column=0, row=3, padx=10, pady=(10, 0))
-        tk.Label(self, text="Animal Basename", anchor="w", width=20).grid(column=0, row=6, padx=10, pady=(10, 0))
-        tk.Label(self, text="Start #", anchor="w", width=20).grid(column=1, row=6, padx=10, pady=(10, 0))
-        tk.Label(self, text="End #", anchor="w", width=20).grid(column=2, row=6, padx=10, pady=(10, 0))
+        tk.Label(self, text="Bin Size", anchor="w", width=15).grid(column=0, row=2, padx=7, pady=(10, 0), sticky='ew')
+        tk.Label(self, text="Split 1(Seconds)", anchor="w", width=15).grid(column=1, row=2, padx=7, pady=(10, 0), sticky='ew')
+        tk.Label(self, text="Split 2", anchor="w", width=15).grid(column=2, row=2, padx=(7,0), pady=(10, 0), sticky='ew')
 
+        tk.Label(graphbuttoncanvas, text="Channel Select", anchor="w").grid(column=0,row=0, pady=(0, 10), sticky="sw")
+        tk.Label(graphbuttoncanvas, text="Region Select", anchor="w").grid(column=0,row=2, pady=(0, 10), sticky="sw")
+        tk.Label(graphbuttoncanvas, text="Trial Select", anchor="w").grid(column=0, row=4, pady=(0, 10), sticky="sw")
+
+        tk.Entry(graphbuttoncanvas, textvariable=self.ch_select).grid(column=0,row=1, pady=(0, 10), sticky="sw")
+        tk.Entry(graphbuttoncanvas, textvariable=self.reg_select).grid(column=0,row=3, pady=(0, 10), sticky="sw")
+        tk.Entry(graphbuttoncanvas, textvariable=self.trial_select).grid(column=0, row=5, pady=(0, 10), sticky="sw")
         # Progress Bars
 
         self.runprog = ttk.Progressbar(self, orient="horizontal", length=480, mode="determinate")
         self.runprog["value"] = 0
-        self.runprog.grid(column=0, row=12, columnspan=5)
+        self.runprog.grid(column=0, row=12, columnspan=6,sticky="ew")
         self.shortprogstat = tk.StringVar()
         self.shortprogstat.set("Regressing Images...")
-        tk.Label(self, width=18, textvariable=self.shortprogstat).grid(column=0, row=13, padx=10, pady=0, columnspan=5, sticky="nsew")
+        tk.Label(self, width=18, textvariable=self.shortprogstat).grid(column=0, row=13, padx=10, pady=0, columnspan=6)
 
