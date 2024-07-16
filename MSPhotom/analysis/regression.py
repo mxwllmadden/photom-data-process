@@ -301,18 +301,17 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
 
 
 def plot_line_and_residuals(X, Y, predicted_values, label):
-    residuals = Y - predicted_values
 
     plt.figure(figsize=(10, 6))
     plt.plot(X, Y, 'o', label=f"{label} Data")
     plt.plot(X, predicted_values, 'r', label=f"{label} Line of Best Fit")
-    for i in range(len(X)):
-        plt.plot([X[i], X[i]], [Y[i], predicted_values[i]], 'k--')
+    # for i in range(len(X)):
+    #    plt.plot([X[i], X[i]], [Y[i], predicted_values[i]], 'k--')
 
     plt.legend()
     plt.title(f"{label} Residuals Plot")
-    plt.xlabel('X')
-    plt.ylabel('Y')
+    plt.xlabel('Traces')
+    plt.ylabel('Studentized Residual Distance(Z-Scores)')
     plt.show()
 
 
@@ -349,7 +348,7 @@ if __name__ == "__main__":
     g_run = 'F://12-07-23/MRKPFCREV 28 Run 1'
     g_channel = 'ch1'
     g_region = 'PTA'
-    g_trial = 20
+    g_trial = 50
     # Get the appropriate dictionaries for the run
     corrsig_graph_dictionary = all_corrsig_graph_dictionary[0]  # Assuming the first dictionary corresponds to g_run
     ch0_graph_dictionary = all_ch0_graph_dictionary[0]  # Assuming the first dictionary corresponds to g_run
