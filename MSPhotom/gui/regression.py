@@ -6,6 +6,14 @@ import tkinter as tk
 from tkinter import ttk
 import matplotlib as plt
 
+
+"""
+TODO: Make Run/Channel/Region be dropdowns not txt input.
+- MM 7.16.24
+
+"""
+
+
 class RegressionTab(tk.Frame):
     def __init__(self, container):
         super().__init__(container)

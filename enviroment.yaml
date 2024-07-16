@@ -7,6 +7,6 @@ dependencies:
   - numpy
   - pillow
   - pyinstaller
-  - python>3.11
+  - python=3.12.3
   - scipy
   - spyder-kernels>=2.5
