@@ -7,6 +7,7 @@ from typing import Dict, Type
 import numpy as np
 from scipy import stats
 import pickle
+import matplotlib.pyplot as plt
 
 from MSPhotom.data import MSPData
 
@@ -38,6 +39,8 @@ def regression_main(data: MSPData, controller=None):
         list: List of dictionaries containing regressed signals for each run.
     """
     all_regressed_signals = []
+    all_corrsig_graph_dictionary = []
+    all_ch0_graph_dictionary = []
     traces_by_run = data.traces_by_run_signal_trial
 
     # Iterate through each run in the nested dictionary
@@ -46,13 +49,15 @@ def regression_main(data: MSPData, controller=None):
         # Assign the nested dictionary (traces within each run) to `traces`
         traces = run_dict
 
-        regressed_signals = regression_func(traces)  # CHANGE THIS TO dict_run_signal
+        regressed_signals, corrsig_graph_dictionary, ch0_graph_dictionary = regression_func(traces)  # CHANGE THIS TO dict_run_signal
         all_regressed_signals.append(regressed_signals)
+        all_corrsig_graph_dictionary.append(corrsig_graph_dictionary)
+        all_ch0_graph_dictionary.append(ch0_graph_dictionary)
 
     data.regressed_signals = all_regressed_signals
     if controller is not None:
         controller.update_data(data)
-    return all_regressed_signals
+    return all_regressed_signals, all_corrsig_graph_dictionary, all_ch0_graph_dictionary
 
 
 def regression_func(traces):
@@ -76,12 +81,16 @@ def regression_func(traces):
 
     # Removes duplicate channel and region names
     unique_channels = unique_list(channel_names)
+    print(unique_channels)
     unique_regions = unique_list(region_names)
+    print(unique_regions)
     unique_channels_ch0_removed = unique_list(channel_names_ch0_removed)
 
     # Initializes blank dictionaries to be filled by regression
     regions_correction_fiber_regressed_b = {}
     regions_correction_fiber_regressed_b_r = {}
+    corrsig_graph_dictionary = {}
+    ch0_graph_dictionary = {}
     region_residuals_ch0_regressed = {}
 
     # This first for loop regresses the correction fiber out
@@ -103,13 +112,20 @@ def regression_func(traces):
             target_trace_b, target_trace_b_r = bin_trials(
                 target_trace, binsize)
             # This Calculates the studentized residuals which regresses the correction fiber out
-            res_studentized_b = studentized_residual_regression(
+            res_studentized_b, corrsig_residuals_b, corrsig_linebestfit_b = studentized_residual_regression(
                 control_trace_b, target_trace_b)
-            res_studentized_b_r = studentized_residual_regression(
+            res_studentized_b_r, corrsig_residuals_b_r, corrsig_linebestfit_b_r = studentized_residual_regression(
                 control_trace_b_r, target_trace_b_r)
+            debinned_reg_residuals = debin_me(corrsig_residuals_b, corrsig_residuals_b_r, binsize)
+            debinned_line_bestfit = debin_me(corrsig_linebestfit_b, corrsig_linebestfit_b_r, binsize)
+
+            corrsig_graph_dictionary[f'{region}_{channel}_residuals'] = debinned_reg_residuals
+            corrsig_graph_dictionary[f'{region}_{channel}_bestfit'] = debinned_line_bestfit
+
             # Saves the studentized residuals to a dictionary for further regression
             regions_correction_fiber_regressed_b[f'{region}_{channel}_b'] = res_studentized_b
             regions_correction_fiber_regressed_b_r[f'{region}_{channel}_b_r'] = res_studentized_b_r
+
 
     # This for loop regresses ch0 out to output residuals for each region by channel
     for region in unique_regions:
@@ -122,17 +138,23 @@ def regression_func(traces):
             target_channel_b = regions_correction_fiber_regressed_b[f'{region}_{channel}_b']
             target_channel_b_r = regions_correction_fiber_regressed_b_r[f'{region}_{channel}_b_r']
             # Regresses the control channel from the target channel
-            res_studentized_b = studentized_residual_regression(
+            res_studentized_b, ch0_residuals_b, ch0_linebestfit_b = studentized_residual_regression(
                 control_channel_b, target_channel_b)
-            res_studentized_b_r = studentized_residual_regression(
+            res_studentized_b_r, ch0_residuals_b_r, ch0_linebestfit_b_r = studentized_residual_regression(
                 control_channel_b_r, target_channel_b_r)
             # Debins the residuals to create a unified dataset
-            debinned_region_residuals = debin_me(
-                res_studentized_b, res_studentized_b_r, binsize)
+            debinned_region_residuals = debin_me(res_studentized_b, res_studentized_b_r, binsize)
+
+            debinned_reg_residuals2 = debin_me(ch0_residuals_b, ch0_residuals_b_r, binsize)
+            debinned_line_bestfit2 = debin_me(ch0_linebestfit_b, ch0_linebestfit_b_r, binsize)
+
+            ch0_graph_dictionary[f'{region}_{channel}_residuals'] = debinned_reg_residuals2
+            ch0_graph_dictionary[f'{region}_{channel}_bestfit'] = debinned_line_bestfit2
+
             # Saves the output residuals into a dictionary
             region_residuals_ch0_regressed[f'{region}_{channel}'] = debinned_region_residuals
 
-    return region_residuals_ch0_regressed
+    return region_residuals_ch0_regressed, corrsig_graph_dictionary, ch0_graph_dictionary
 
 
 def unique_list(iterable):
@@ -234,9 +256,9 @@ def studentized_residual_regression(X, Y):
 
     # Flatten studentized residuals only if 1D (If there is only 1 trial or bin)
     if studentized_residuals.ndim == 1:
-        return studentized_residuals.flatten()
+        return studentized_residuals.flatten(), predicted_values, residuals
     else:
-        return studentized_residuals
+        return studentized_residuals, predicted_values, residuals
 
 
 def debin_me(binned_signal, binned_signal_remainder, binsize):
@@ -273,10 +295,56 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
             [net_res_reshaped, net_res_reshaped_r], axis=1)
     return net_res_debinned
 
+def clear_canvas(canvas):
+    for widget in canvas.winfo_children():
+        widget.destroy()
+
+
+def plot_line_and_residuals(X, Y, label):
+    slope, intercept, _, _, _ = stats.linregress(X, Y)
+    predicted_values = slope * X + intercept
+    residuals = Y - predicted_values
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(X, Y, 'o', label=f"{label} Data")
+    plt.plot(X, predicted_values, 'r', label=f"{label} Line of Best Fit")
+    for i in range(len(X)):
+        plt.plot([X[i], X[i]], [Y[i], predicted_values[i]], 'k--')
+
+    plt.legend()
+    plt.title(f"{label} Residuals Plot")
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.show()
+
+
+def plot_corrsigres(data, g_run, g_channel, g_region, g_trial):
+    traces = data.traces_by_run_signal_trial[g_run]
+    X = np.arange(traces[f'sig_corrsig_{g_channel}'].shape[0])
+    Y = traces[f'sig_{g_region}_{g_channel}'][:, g_trial]
+
+    plot_line_and_residuals(X, Y, "Corrsig")
+
+
+def plot_ch0res(data, g_run, g_channel, g_region, g_trial):
+    traces = data.traces_by_run_signal_trial[g_run]
+    X = np.arange(traces[f'sig_{g_region}_ch0'].shape[0])
+    Y = traces[f'sig_{g_region}_{g_channel}'][:, g_trial]
+
+    plot_line_and_residuals(X, Y, "Channel 0")
 
 if __name__ == "__main__":
     with open('exampledata.pkl', 'rb') as f:
         loaded_data = pickle.load(f)
     binsize = 10
     regression_main(loaded_data)
+    g_run = 'F://12-07-23/MRKPFCREV 28 Run 1'
+    g_channel = 'ch1'
+    g_region = 'PTA'
+    g_trial = 20
+
+    plot_ch0res(loaded_data, g_run, g_channel, g_region, g_trial)
+    plot_corrsigres(loaded_data, g_run, g_channel, g_region, g_trial)
+
+
 
