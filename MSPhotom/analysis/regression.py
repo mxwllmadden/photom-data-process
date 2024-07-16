@@ -116,7 +116,8 @@ def regression_func(traces):
                 control_trace_b, target_trace_b)
             res_studentized_b_r, corrsig_residuals_b_r, corrsig_linebestfit_b_r = studentized_residual_regression(
                 control_trace_b_r, target_trace_b_r)
-            debinned_reg_residuals = debin_me(corrsig_residuals_b, corrsig_residuals_b_r, binsize)
+            print(corrsig_residuals_b)
+            debinned_reg_residuals = debin_me(res_studentized_b, res_studentized_b_r, binsize)
             debinned_line_bestfit = debin_me(corrsig_linebestfit_b, corrsig_linebestfit_b_r, binsize)
 
             corrsig_graph_dictionary[f'{region}_{channel}_residuals'] = debinned_reg_residuals
@@ -145,7 +146,7 @@ def regression_func(traces):
             # Debins the residuals to create a unified dataset
             debinned_region_residuals = debin_me(res_studentized_b, res_studentized_b_r, binsize)
 
-            debinned_reg_residuals2 = debin_me(ch0_residuals_b, ch0_residuals_b_r, binsize)
+            debinned_reg_residuals2 = debin_me(res_studentized_b, res_studentized_b_r, binsize)
             debinned_line_bestfit2 = debin_me(ch0_linebestfit_b, ch0_linebestfit_b_r, binsize)
 
             ch0_graph_dictionary[f'{region}_{channel}_residuals'] = debinned_reg_residuals2
@@ -231,7 +232,8 @@ def studentized_residual_regression(X, Y):
     num_trials = X.shape[1]
     # Initialize array to store studentized residuals
     studentized_residuals = np.zeros_like(Y)
-
+    graph_predicted_values = np.zeros_like(Y)
+    graph_residuals = np.zeros_like(Y)
     # Loops through all the trials
     for i in range(num_trials):
         # This is here if a trial of all zeros gets through to prevent errors
@@ -241,7 +243,9 @@ def studentized_residual_regression(X, Y):
             # This calculates residuals (These residuals 100% Match Matlab residuals)
             slope, intercept, _, _, _ = stats.linregress(X[:, i], Y[:, i])
             predicted_values = slope * X[:, i] + intercept
+            graph_predicted_values[:, i] = slope * X[:, i] + intercept
             residuals = Y[:, i] - predicted_values
+            graph_residuals[:, i] = Y[:, i] - predicted_values
             # Below does the steps for studentization
             # Calculate standard error of residuals
             Var_e = np.sqrt(np.sum(residuals ** 2) / (X.shape[0] - 2))
@@ -256,9 +260,9 @@ def studentized_residual_regression(X, Y):
 
     # Flatten studentized residuals only if 1D (If there is only 1 trial or bin)
     if studentized_residuals.ndim == 1:
-        return studentized_residuals.flatten(), predicted_values, residuals
+        return studentized_residuals.flatten(), graph_predicted_values.flatten(), graph_residuals.flatten()
     else:
-        return studentized_residuals, predicted_values, residuals
+        return studentized_residuals, graph_predicted_values, graph_residuals
 
 
 def debin_me(binned_signal, binned_signal_remainder, binsize):
@@ -295,14 +299,8 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
             [net_res_reshaped, net_res_reshaped_r], axis=1)
     return net_res_debinned
 
-def clear_canvas(canvas):
-    for widget in canvas.winfo_children():
-        widget.destroy()
 
-
-def plot_line_and_residuals(X, Y, label):
-    slope, intercept, _, _, _ = stats.linregress(X, Y)
-    predicted_values = slope * X + intercept
+def plot_line_and_residuals(X, Y, predicted_values, label):
     residuals = Y - predicted_values
 
     plt.figure(figsize=(10, 6))
@@ -318,33 +316,50 @@ def plot_line_and_residuals(X, Y, label):
     plt.show()
 
 
-def plot_corrsigres(data, g_run, g_channel, g_region, g_trial):
-    traces = data.traces_by_run_signal_trial[g_run]
-    X = np.arange(traces[f'sig_corrsig_{g_channel}'].shape[0])
-    Y = traces[f'sig_{g_region}_{g_channel}'][:, g_trial]
+def plot_corrsigres(corrsig_graph_dictionary, g_region, g_channel, g_trial):
+    residuals_key = f'{g_region}_{g_channel}_residuals'
+    bestfit_key = f'{g_region}_{g_channel}_bestfit'
 
-    plot_line_and_residuals(X, Y, "Corrsig")
+    residuals = corrsig_graph_dictionary[residuals_key][:, g_trial]
+    bestfit = corrsig_graph_dictionary[bestfit_key][:, g_trial]
+
+    X = np.arange(len(residuals))
+    Y = residuals + bestfit  # Recreate the original data points
+
+    plot_line_and_residuals(X, Y, bestfit, label="Corrsig")
 
 
-def plot_ch0res(data, g_run, g_channel, g_region, g_trial):
-    traces = data.traces_by_run_signal_trial[g_run]
-    X = np.arange(traces[f'sig_{g_region}_ch0'].shape[0])
-    Y = traces[f'sig_{g_region}_{g_channel}'][:, g_trial]
+def plot_ch0res(ch0_graph_dictionary, g_region, g_channel, g_trial):
+    residuals_key = f'{g_region}_{g_channel}_residuals'
+    bestfit_key = f'{g_region}_{g_channel}_bestfit'
 
-    plot_line_and_residuals(X, Y, "Channel 0")
+    residuals = ch0_graph_dictionary[residuals_key][:, g_trial]
+    bestfit = ch0_graph_dictionary[bestfit_key][:, g_trial]
+
+    X = np.arange(len(residuals))
+    Y = residuals + bestfit  # Recreate the original data points
+
+    plot_line_and_residuals(X, Y, bestfit, label="Channel 0")
 
 if __name__ == "__main__":
     with open('exampledata.pkl', 'rb') as f:
         loaded_data = pickle.load(f)
     binsize = 10
-    regression_main(loaded_data)
+    _, all_corrsig_graph_dictionary, all_ch0_graph_dictionary = regression_main(loaded_data)
     g_run = 'F://12-07-23/MRKPFCREV 28 Run 1'
     g_channel = 'ch1'
     g_region = 'PTA'
     g_trial = 20
+    # Get the appropriate dictionaries for the run
+    corrsig_graph_dictionary = all_corrsig_graph_dictionary[0]  # Assuming the first dictionary corresponds to g_run
+    ch0_graph_dictionary = all_ch0_graph_dictionary[0]  # Assuming the first dictionary corresponds to g_run
 
-    plot_ch0res(loaded_data, g_run, g_channel, g_region, g_trial)
-    plot_corrsigres(loaded_data, g_run, g_channel, g_region, g_trial)
+    # Plot corrsig residuals
+    plot_corrsigres(corrsig_graph_dictionary, g_region, g_channel, g_trial)
+
+    # Plot ch0 residuals
+    plot_ch0res(ch0_graph_dictionary, g_region, g_channel, g_trial)
+
 
 
 
