@@ -186,7 +186,7 @@ def unique_list(iterable):
     return new_list
 
 
-def bin_trials(signal, binsize):
+def bin_trials(signal : np.ndarray, binsize):
     """
     Bin trials of a signal into groups for noise reduction.
 
@@ -213,10 +213,7 @@ def bin_trials(signal, binsize):
     signal_remainder = signal[:, trimmed_signal_length:]
 
     # Reshapes the arrays into properly binned data with the remaining trials in a new array
-    if binsize == 1:
-        binned_signal = signal
-        return binned_signal, None # TODO: Be explicit with data, if there is no data, pass None so that we KNOW what we are getting.
-    elif remainder_columns == 0:
+    if remainder_columns == 0:
         binned_signal = trimmed_signal.reshape(
             (binsize * trial_length, num_binned_columns), order='F')
         return binned_signal, None
@@ -313,23 +310,24 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
     Returns:
         numpy.ndarray: Debinarized signal array.
     """
-    if binned_signal_remainder == None:
-        net_res_debinned = binned_signal #TODO: Do you need this statement? -MM 7.16.24
-        return net_res_debinned
     # This converts the binned signals back to initial array structure
     # Calculations to get the correct array sizes to ensure proper concatenation
     bin_length = binned_signal.shape[0]
     num_bin_trials = binned_signal.shape[1]
     trial_length = bin_length // binsize
     total_trials = num_bin_trials * binsize
-    r_bin_length = binned_signal_remainder.shape[0]
-    r_total_trials = r_bin_length // trial_length
-
+    
     # Combines the remainder array back into the primary array.
 
     # Reshapes the arrays to have equal row lengths equal to the initial trial lengths
     net_res_reshaped = binned_signal.reshape(
         (trial_length, total_trials), order='F')
+    if binned_signal_remainder == None:
+        return net_res_reshaped
+    
+    r_bin_length = binned_signal_remainder.shape[0]
+    r_total_trials = r_bin_length // trial_length
+    
     net_res_reshaped_r = binned_signal_remainder.reshape(
         (trial_length, r_total_trials), order='F')
     net_res_debinned = np.concatenate(
@@ -377,7 +375,7 @@ def plot_ch0res(ch0_graph_dictionary, g_region, g_channel, g_trial):
 
     plot_line_and_residuals(X, Y, bestfit, label="Channel 0")
 
-
+"""
 if __name__ == "__main__":
     with open('exampledata.pkl', 'rb') as f:
         loaded_data = pickle.load(f)
@@ -399,3 +397,4 @@ if __name__ == "__main__":
 
 
 
+"""
