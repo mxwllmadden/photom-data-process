@@ -124,13 +124,12 @@ def regression_func(traces):
             target_trace_b, target_trace_b_r = bin_trials(
                 target_trace, binsize)
             # This Calculates the studentized residuals which regresses the correction fiber out
-            res_studentized_b, corrsig_residuals_b, corrsig_linebestfit_b = studentized_residual_regression(
+            res_studentized_b, corrsig_x_values, corrsig_y_values = studentized_residual_regression(
                 control_trace_b, target_trace_b)
-            res_studentized_b_r, corrsig_residuals_b_r, corrsig_linebestfit_b_r = studentized_residual_regression(
+            res_studentized_b_r, corrsig_x_values_r, corrsig_y_values_r = studentized_residual_regression(
                 control_trace_b_r, target_trace_b_r)
-            print(corrsig_residuals_b)
-            debinned_reg_residuals = debin_me(res_studentized_b, res_studentized_b_r, binsize)
-            debinned_line_bestfit = debin_me(corrsig_linebestfit_b, corrsig_linebestfit_b_r, binsize)
+            debinned_reg_residuals = debin_me(corrsig_x_values, corrsig_x_values_r, binsize)
+            debinned_line_bestfit = debin_me(corrsig_y_values, corrsig_y_values_r, binsize)
 
             corrsig_graph_dictionary[f'{region}_{channel}_residuals'] = debinned_reg_residuals
             corrsig_graph_dictionary[f'{region}_{channel}_bestfit'] = debinned_line_bestfit
@@ -215,8 +214,12 @@ def bin_trials(signal, binsize):
 
     # Reshapes the arrays into properly binned data with the remaining trials in a new array
     if binsize == 1:
-        # Goofy logic to deal with no binning
-        return signal, None # TODO: Be explicit with data, if there is no data, pass None so that we KNOW what we are getting.
+        binned_signal = signal
+        return binned_signal, None # TODO: Be explicit with data, if there is no data, pass None so that we KNOW what we are getting.
+    elif remainder_columns == 0:
+        binned_signal = trimmed_signal.reshape(
+            (binsize * trial_length, num_binned_columns), order='F')
+        return binned_signal, None
 
     # This step might be unnecessary but it confirms the arrays are the right size
     binned_signal = trimmed_signal.reshape(
@@ -239,44 +242,64 @@ def studentized_residual_regression(X, Y):
     """
 
     # Does regression and studentization in 1 step because original arrays are needed for studentization
-    num_trials = X.shape[1]
+    # First try block is here to assess if the Residual exists(For when there is no remainder
+    try:
+        num_trials = X.shape[1]
+    except AttributeError:
+        return None, None, None
     # Initialize array to store studentized residuals
-    studentized_residuals = np.zeros_like(Y) #TODO: DO NOT USE ZEROS AS DATA PLACEHOLDERS -MM 7.16.24
-    graph_predicted_values = np.zeros_like(Y)#TODO: USE NAN INSTEAD -MM 7.16.24
-    graph_residuals = np.zeros_like(Y)
+    studentized_residuals = np.zeros_like(Y)
+    studentized_residuals.fill(np.nan)
+
+    graph_control_values = np.zeros_like(Y)
+    graph_control_values.fill(np.nan)
+
+    graph_test_values = np.zeros_like(Y)
+    graph_test_values.fill(np.nan)
+
+
     # Loops through all the trials
     for i in range(num_trials): #TODO: USE DESCRIPTIVE VARIABLE NAMES -MM 7.16.24
         #TODO: YOU MAY WANT TO USE i in X STYLE NOTE -MM 7.16.24
-        # This is here if a trial of all zeros gets through to prevent errors
-        if np.all(X[:, i] == X[0, i]): #TODO: CHANGE TO TRY EXCEPT -MM 7.16.24
-            studentized_residuals[:, i] = np.zeros(Y[:, i].shape)  #TODO: DO NOT USE ZEROS AS DATA PLACEHOLDERS -MM 7.16.24
-        else:
+        #TODO: CHANGE TO TRY EXCEPT -MM 7.16.24
+        #TODO: DO NOT USE ZEROS AS DATA PLACEHOLDERS -MM 7.16.24
+        try:
+            valid_mask = ~np.isnan(X[:, i]) & ~np.isnan(Y[:, i])
+            X_valid = X[valid_mask, i]
+            Y_valid = Y[valid_mask, i]
+
+            # If there are less than 2 valid points, skip the trial
+            if len(X_valid) < 2 or len(Y_valid) < 2:
+                continue
             #TODO: Filter nans from input arrays ENSURE THAT FILTERED POINTS ARE FILTERED FROM BOTH X AND Y
             # This calculates residuals (These residuals 100% Match Matlab residuals)
-            slope, intercept, _, _, _ = stats.linregress(X[:, i], Y[:, i])
+            slope, intercept, _, _, _ = stats.linregress(X_valid, Y_valid)
             #TODO: CALCULATE WITH THE NAN INCLUDED ARRAY -> Use expected behavior of NaN to remove from array/plotting bad points.
+            #These are element specific
             predicted_values = slope * X[:, i] + intercept
-            graph_predicted_values[:, i] = slope * X[:, i] + intercept
             residuals = Y[:, i] - predicted_values
-            graph_residuals[:, i] = Y[:, i] - predicted_values
+            graph_control_values[:, i] = X[:, i]
+            graph_test_values[:, i] = Y[:, i]
             # Below does the steps for studentization
-            # Calculate standard error of residuals
-            Var_e = np.sqrt(np.sum(residuals ** 2) / (X.shape[0] - 2))
+            # Calculate standard error of residuals without nans
+            Var_e = np.sqrt(np.nansum(residuals ** 2) / (np.count_nonzero(~np.isnan(residuals)) - 2))
             # Calculate leverage values (h_ii) for studentization
-            mean_X = np.mean(X[:, i])
-            diff_mean_sqr = np.dot((X[:, i] - mean_X), (X[:, i] - mean_X))
+            mean_X = np.nanmean(X[:, i]) # good
+            diff_mean_sqr = np.dot((X_valid - mean_X), (X_valid - mean_X))
+            # h_ii is element specific
             h_ii = (X[:, i] - mean_X) ** 2 / diff_mean_sqr + (1 / X.shape[0])
             # SE_regression should be equivalent to the bottom of the studentization formula "sqrt(MSE(i)(1−h_ii))"
             SE_regression = Var_e * np.sqrt(1 - h_ii)
             # Calculate studentized residuals
             studentized_residuals[:, i] = residuals / SE_regression
-
-    # Flatten studentized residuals only if 1D (If there is only 1 trial or bin)
+        except ValueError:
+            pass
+            # This should be the nans
+            # Flatten studentized residuals only if 1D (If there is only 1 trial or bin)
     if studentized_residuals.ndim == 1:
-        return studentized_residuals.flatten(), graph_predicted_values.flatten(), graph_residuals.flatten()
+        return studentized_residuals.flatten(), graph_control_values.flatten(), graph_test_values.flatten()
     else:
-        return studentized_residuals, graph_predicted_values, graph_residuals
-
+        return studentized_residuals, graph_control_values, graph_test_values
 
 def debin_me(binned_signal, binned_signal_remainder, binsize):
     """
@@ -290,6 +313,9 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
     Returns:
         numpy.ndarray: Debinarized signal array.
     """
+    if binned_signal_remainder == None:
+        net_res_debinned = binned_signal #TODO: Do you need this statement? -MM 7.16.24
+        return net_res_debinned
     # This converts the binned signals back to initial array structure
     # Calculations to get the correct array sizes to ensure proper concatenation
     bin_length = binned_signal.shape[0]
@@ -300,16 +326,14 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
     r_total_trials = r_bin_length // trial_length
 
     # Combines the remainder array back into the primary array.
-    if binsize == 1:
-        net_res_debinned = binned_signal #TODO: Do you need this statement? -MM 7.16.24
-    else:
-        # Reshapes the arrays to have equal row lengths equal to the initial trial lengths
-        net_res_reshaped = binned_signal.reshape(
-            (trial_length, total_trials), order='F')
-        net_res_reshaped_r = binned_signal_remainder.reshape(
-            (trial_length, r_total_trials), order='F')
-        net_res_debinned = np.concatenate(
-            [net_res_reshaped, net_res_reshaped_r], axis=1)
+
+    # Reshapes the arrays to have equal row lengths equal to the initial trial lengths
+    net_res_reshaped = binned_signal.reshape(
+        (trial_length, total_trials), order='F')
+    net_res_reshaped_r = binned_signal_remainder.reshape(
+        (trial_length, r_total_trials), order='F')
+    net_res_debinned = np.concatenate(
+        [net_res_reshaped, net_res_reshaped_r], axis=1)
     return net_res_debinned
 
 
@@ -355,9 +379,9 @@ def plot_ch0res(ch0_graph_dictionary, g_region, g_channel, g_trial):
 
 
 if __name__ == "__main__":
-    with open('G:/photomexampledata/example.pkl', 'rb') as f:
+    with open('exampledata.pkl', 'rb') as f:
         loaded_data = pickle.load(f)
-    binsize = 9
+    binsize = 1
     _, all_corrsig_graph_dictionary, all_ch0_graph_dictionary = regression_main(loaded_data)
     g_run = 'F://12-07-23/MRKPFCREV 28 Run 1'
     g_channel = 'ch1'
