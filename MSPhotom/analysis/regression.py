@@ -8,7 +8,8 @@ import numpy as np
 from scipy import stats
 import pickle
 import matplotlib.pyplot as plt
-
+from statsmodels.formula.api import ols
+import pandas as pd
 from MSPhotom.data import MSPData
 
 """
@@ -69,7 +70,7 @@ def regression_main(data: MSPData, controller=None):
     data.regressed_signals = all_regressed_signals
     if controller is not None:
         controller.update_data(data)
-    return all_regressed_signals, all_corrsig_graph_dictionary, all_ch0_graph_dictionary
+    return all_regressed_signals
 
 
 def regression_func(traces):
@@ -124,15 +125,15 @@ def regression_func(traces):
             target_trace_b, target_trace_b_r = bin_trials(
                 target_trace, binsize)
             # This Calculates the studentized residuals which regresses the correction fiber out
-            res_studentized_b, corrsig_x_values, corrsig_y_values = studentized_residual_regression(
+            res_studentized_b = calculate_studentized_residuals(
                 control_trace_b, target_trace_b)
-            res_studentized_b_r, corrsig_x_values_r, corrsig_y_values_r = studentized_residual_regression(
+            res_studentized_b_r = calculate_studentized_residuals(
                 control_trace_b_r, target_trace_b_r)
-            debinned_reg_residuals = debin_me(corrsig_x_values, corrsig_x_values_r, binsize)
-            debinned_line_bestfit = debin_me(corrsig_y_values, corrsig_y_values_r, binsize)
+            # debinned_reg_residuals = debin_me(corrsig_x_values, corrsig_x_values_r, binsize)
+            # debinned_line_bestfit = debin_me(corrsig_y_values, corrsig_y_values_r, binsize)
 
-            corrsig_graph_dictionary[f'{region}_{channel}_residuals'] = debinned_reg_residuals
-            corrsig_graph_dictionary[f'{region}_{channel}_bestfit'] = debinned_line_bestfit
+            # corrsig_graph_dictionary[f'{region}_{channel}_residuals'] = debinned_reg_residuals
+            # corrsig_graph_dictionary[f'{region}_{channel}_bestfit'] = debinned_line_bestfit
 
             # Saves the studentized residuals to a dictionary for further regression
             regions_correction_fiber_regressed_b[f'{region}_{channel}_b'] = res_studentized_b
@@ -150,23 +151,21 @@ def regression_func(traces):
             target_channel_b = regions_correction_fiber_regressed_b[f'{region}_{channel}_b']
             target_channel_b_r = regions_correction_fiber_regressed_b_r[f'{region}_{channel}_b_r']
             # Regresses the control channel from the target channel
-            res_studentized_b, ch0_residuals_b, ch0_linebestfit_b = studentized_residual_regression(
+            res_studentized_b = calculate_studentized_residuals(
                 control_channel_b, target_channel_b)
-            res_studentized_b_r, ch0_residuals_b_r, ch0_linebestfit_b_r = studentized_residual_regression(
+            res_studentized_b_r = calculate_studentized_residuals(
                 control_channel_b_r, target_channel_b_r)
             # Debins the residuals to create a unified dataset
             debinned_region_residuals = debin_me(res_studentized_b, res_studentized_b_r, binsize)
 
-            debinned_reg_residuals2 = debin_me(res_studentized_b, res_studentized_b_r, binsize)
-            debinned_line_bestfit2 = debin_me(ch0_linebestfit_b, ch0_linebestfit_b_r, binsize)
 
-            ch0_graph_dictionary[f'{region}_{channel}_residuals'] = debinned_reg_residuals2
-            ch0_graph_dictionary[f'{region}_{channel}_bestfit'] = debinned_line_bestfit2
+            # ch0_graph_dictionary[f'{region}_{channel}_residuals'] = debinned_reg_residuals2
+            # ch0_graph_dictionary[f'{region}_{channel}_bestfit'] = debinned_line_bestfit2
 
             # Saves the output residuals into a dictionary
             region_residuals_ch0_regressed[f'{region}_{channel}'] = debinned_region_residuals
 
-    return region_residuals_ch0_regressed, corrsig_graph_dictionary, ch0_graph_dictionary
+    return region_residuals_ch0_regressed
 
 
 def unique_list(iterable):
@@ -226,77 +225,38 @@ def bin_trials(signal : np.ndarray, binsize):
     return binned_signal, binned_remainder
 
 
-def studentized_residual_regression(X, Y):
-    """
-    Calculate studentized residuals from regression of X on Y.
-
-    Args:
-        X (numpy.ndarray): Independent variable array.
-        Y (numpy.ndarray): Dependent variable array.
-
-    Returns:
-        numpy.ndarray: Array of studentized residuals.
-    """
-
-    # Does regression and studentization in 1 step because original arrays are needed for studentization
-    # First try block is here to assess if the Residual exists(For when there is no remainder
+def calculate_studentized_residuals(X, Y):
+    # This logic is here to quickly exit the function if their is no binned remainder
     try:
         num_trials = X.shape[1]
     except AttributeError:
-        return None, None, None
-    # Initialize array to store studentized residuals
-    studentized_residuals = np.zeros_like(Y)
-    studentized_residuals.fill(np.nan)
+        return None
+    studentized_residuals = np.full(Y.shape, np.nan, dtype=np.float64)
 
-    graph_control_values = np.zeros_like(Y)
-    graph_control_values.fill(np.nan)
-
-    graph_test_values = np.zeros_like(Y)
-    graph_test_values.fill(np.nan)
-
-
-    # Loops through all the trials
-    for i in range(num_trials): #TODO: USE DESCRIPTIVE VARIABLE NAMES -MM 7.16.24
-        #TODO: YOU MAY WANT TO USE i in X STYLE NOTE -MM 7.16.24
-        #TODO: CHANGE TO TRY EXCEPT -MM 7.16.24
-        #TODO: DO NOT USE ZEROS AS DATA PLACEHOLDERS -MM 7.16.24
+    for i in range(num_trials):
         try:
             valid_mask = ~np.isnan(X[:, i]) & ~np.isnan(Y[:, i])
             X_valid = X[valid_mask, i]
             Y_valid = Y[valid_mask, i]
 
-            # If there are less than 2 valid points, skip the trial
             if len(X_valid) < 2 or len(Y_valid) < 2:
                 continue
-            #TODO: Filter nans from input arrays ENSURE THAT FILTERED POINTS ARE FILTERED FROM BOTH X AND Y
-            # This calculates residuals (These residuals 100% Match Matlab residuals)
-            slope, intercept, _, _, _ = stats.linregress(X_valid, Y_valid)
-            #TODO: CALCULATE WITH THE NAN INCLUDED ARRAY -> Use expected behavior of NaN to remove from array/plotting bad points.
-            #These are element specific
-            predicted_values = slope * X[:, i] + intercept
-            residuals = Y[:, i] - predicted_values
-            graph_control_values[:, i] = X[:, i]
-            graph_test_values[:, i] = Y[:, i]
-            # Below does the steps for studentization
-            # Calculate standard error of residuals without nans
-            Var_e = np.sqrt(np.nansum(residuals ** 2) / (np.count_nonzero(~np.isnan(residuals)) - 2))
-            # Calculate leverage values (h_ii) for studentization
-            mean_X = np.nanmean(X[:, i]) # good
-            diff_mean_sqr = np.dot((X_valid - mean_X), (X_valid - mean_X))
-            # h_ii is element specific
-            h_ii = (X[:, i] - mean_X) ** 2 / diff_mean_sqr + (1 / X.shape[0])
-            # SE_regression should be equivalent to the bottom of the studentization formula "sqrt(MSE(i)(1−h_ii))"
-            SE_regression = Var_e * np.sqrt(1 - h_ii)
-            # Calculate studentized residuals
-            studentized_residuals[:, i] = residuals / SE_regression
-        except ValueError:
+
+            # Converting to a dataframe for `ols` usage
+            data = {'X': X_valid, 'Y': Y_valid}
+            dataframeinternal = pd.DataFrame(data)
+            print(dataframeinternal)
+            # Building simple linear regression model
+            model = ols('Y ~ X', data=dataframeinternal).fit()
+            print(model.summary())
+            # Producing studentized residuals
+            outlier_test_result = model.outlier_test()
+            print(outlier_test_result)
+            studentized_residuals[valid_mask, i] = outlier_test_result['student_resid']
+        except (ValueError, np.linalg.LinAlgError):
             pass
-            # This should be the nans
-            # Flatten studentized residuals only if 1D (If there is only 1 trial or bin)
-    if studentized_residuals.ndim == 1:
-        return studentized_residuals.flatten(), graph_control_values.flatten(), graph_test_values.flatten()
-    else:
-        return studentized_residuals, graph_control_values, graph_test_values
+
+    return studentized_residuals.flatten() if studentized_residuals.ndim == 1 else studentized_residuals
 
 def debin_me(binned_signal, binned_signal_remainder, binsize):
     """
@@ -350,51 +310,37 @@ def plot_line_and_residuals(X, Y, predicted_values, label):
     plt.show()
 
 
-def plot_corrsigres(corrsig_graph_dictionary, g_region, g_channel, g_trial):
-    residuals_key = f'{g_region}_{g_channel}_residuals'
-    bestfit_key = f'{g_region}_{g_channel}_bestfit'
+# def plot_corrsigres(corrsig_graph_dictionary, g_region, g_channel, g_trial):
+#     residuals_key = f'{g_region}_{g_channel}_residuals'
+#     bestfit_key = f'{g_region}_{g_channel}_bestfit'
+#
+#     residuals = corrsig_graph_dictionary[residuals_key][:, g_trial]
+#     bestfit = corrsig_graph_dictionary[bestfit_key][:, g_trial]
+#
+#     X = np.arange(len(residuals))
+#     Y = residuals + bestfit  # Recreate the original data points
+#
+#     plot_line_and_residuals(X, Y, bestfit, label="Corrsig")
+#
+#
+# def plot_ch0res(ch0_graph_dictionary, g_region, g_channel, g_trial):
+#     residuals_key = f'{g_region}_{g_channel}_residuals'
+#     bestfit_key = f'{g_region}_{g_channel}_bestfit'
+#
+#     residuals = ch0_graph_dictionary[residuals_key][:, g_trial]
+#     bestfit = ch0_graph_dictionary[bestfit_key][:, g_trial]
+#
+#     X = np.arange(len(residuals))
+#     Y = residuals + bestfit  # Recreate the original data points
+#
+#     plot_line_and_residuals(X, Y, bestfit, label="Channel 0")
 
-    residuals = corrsig_graph_dictionary[residuals_key][:, g_trial]
-    bestfit = corrsig_graph_dictionary[bestfit_key][:, g_trial]
 
-    X = np.arange(len(residuals))
-    Y = residuals + bestfit  # Recreate the original data points
-
-    plot_line_and_residuals(X, Y, bestfit, label="Corrsig")
-
-
-def plot_ch0res(ch0_graph_dictionary, g_region, g_channel, g_trial):
-    residuals_key = f'{g_region}_{g_channel}_residuals'
-    bestfit_key = f'{g_region}_{g_channel}_bestfit'
-
-    residuals = ch0_graph_dictionary[residuals_key][:, g_trial]
-    bestfit = ch0_graph_dictionary[bestfit_key][:, g_trial]
-
-    X = np.arange(len(residuals))
-    Y = residuals + bestfit  # Recreate the original data points
-
-    plot_line_and_residuals(X, Y, bestfit, label="Channel 0")
-
-"""
 if __name__ == "__main__":
     with open('exampledata.pkl', 'rb') as f:
         loaded_data = pickle.load(f)
     binsize = 1
-    _, all_corrsig_graph_dictionary, all_ch0_graph_dictionary = regression_main(loaded_data)
-    g_run = 'F://12-07-23/MRKPFCREV 28 Run 1'
-    g_channel = 'ch1'
-    g_region = 'PTA'
-    g_trial = 50
-    # Get the appropriate dictionaries for the run
-    corrsig_graph_dictionary = all_corrsig_graph_dictionary[0]  # Assuming the first dictionary corresponds to g_run
-    ch0_graph_dictionary = all_ch0_graph_dictionary[0]  # Assuming the first dictionary corresponds to g_run
-
-    # Plot corrsig residuals
-    plot_corrsigres(corrsig_graph_dictionary, g_region, g_channel, g_trial)
-
-    # Plot ch0 residuals
-    plot_ch0res(ch0_graph_dictionary, g_region, g_channel, g_trial)
+    all_regressed_signals = regression_main(loaded_data)
 
 
 
-"""
