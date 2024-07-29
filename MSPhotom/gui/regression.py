@@ -66,14 +66,14 @@ class RegressionTab(tk.Frame):
         self.trial_select.set("10")
 
         # Entry Fields
-        tk.Label(self, width=15, text="Total Runs", anchor='w').grid(column=0, row=0, padx=(10, 0), pady=(4, 0), sticky="sw")
-        tk.Label(self, width=15, text="Med # Trials", anchor='w').grid(column=1, row=0, padx=(10, 0), pady=(4, 0), sticky="sw")
-        tk.Label(self, width=15, text="# Regions", anchor='w').grid(column=2, row=0, padx=(10, 0),
+        tk.Label(self, width=13, text="Total Runs", anchor='w').grid(column=0, row=0, padx=(7, 0), pady=(4, 0), sticky="sw")
+        tk.Label(self, width=13, text="Med # Trials", anchor='w').grid(column=1, row=0, padx=(7, 0), pady=(4, 0), sticky="sw")
+        tk.Label(self, width=13, text="# Regions", anchor='w').grid(column=2, row=0, padx=(7, 0),
                                                                                pady=(4, 0), sticky="sw")
 
-        tk.Label(self, width=13, text="Temp Runs", anchor='w', bg='white').grid(column=0, row=1, padx=7, pady=0, sticky="nw")
-        tk.Label(self, width=13, text="Temp Trials", anchor='w', bg='white').grid(column=1, row=1, padx=7, pady=0, sticky="nw")
-        tk.Label(self, width=13, text="Temp Regions", anchor='w', bg='white').grid(column=2, row=1, padx=(7,0),
+        tk.Label(self, width=13, text="Temp Runs", anchor='w').grid(column=0, row=1, padx=(7, 0), pady=0, sticky="nw")
+        tk.Label(self, width=13, text="Temp Trials", anchor='w').grid(column=1, row=1, padx=(7, 0), pady=0, sticky="nw")
+        tk.Label(self, width=13, text="Temp Regions", anchor='w').grid(column=2, row=1, padx=(7, 0),
                                                                                pady=0, sticky="nw")
         self.binsizeentry = tk.Entry(self, width=15, textvariable=self.bin_size)
         self.split1entry = tk.Entry(self, width=15, textvariable=self.splits1)
@@ -115,7 +115,7 @@ class RegressionTab(tk.Frame):
 
         self.runprog = ttk.Progressbar(self, orient="horizontal", length=480, mode="determinate")
         self.runprog["value"] = 0
-        self.runprog.grid(column=0, row=12, columnspan=6)
+        self.runprog.grid(column=0, row=12, columnspan=6, pady=(15,0))
         self.shortprogstat = tk.StringVar()
         self.shortprogstat.set("Regressing Images...")
         tk.Label(self, width=18, textvariable=self.shortprogstat).grid(column=0, row=13, padx=10, pady=0, columnspan=6)

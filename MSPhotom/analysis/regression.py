@@ -245,13 +245,13 @@ def calculate_studentized_residuals(X, Y):
             # Converting to a dataframe for `ols` usage
             data = {'X': X_valid, 'Y': Y_valid}
             dataframeinternal = pd.DataFrame(data)
-            print(dataframeinternal)
+            # print(dataframeinternal)
             # Building simple linear regression model
             model = ols('Y ~ X', data=dataframeinternal).fit()
-            print(model.summary())
+            # print(model.summary())
             # Producing studentized residuals
             outlier_test_result = model.outlier_test()
-            print(outlier_test_result)
+            # print(outlier_test_result)
             studentized_residuals[valid_mask, i] = outlier_test_result['student_resid']
         except (ValueError, np.linalg.LinAlgError):
             pass
