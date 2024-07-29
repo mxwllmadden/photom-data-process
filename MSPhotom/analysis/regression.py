@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from statsmodels.formula.api import ols
 import pandas as pd
 from MSPhotom.data import MSPData
+from MSPhotom.analysis.testing_regression import FakeMSPData
 
 """
 TODO - 7/9/24 - MM
@@ -62,10 +63,10 @@ def regression_main(data: MSPData, controller=None):
         # Assign the nested dictionary (traces within each run) to `traces`
         traces = run_dict
 
-        regressed_signals, corrsig_graph_dictionary, ch0_graph_dictionary = regression_func(traces)  # CHANGE THIS TO dict_run_signal
+        regressed_signals = regression_func(traces)  # CHANGE THIS TO dict_run_signal
         all_regressed_signals.append(regressed_signals)
-        all_corrsig_graph_dictionary.append(corrsig_graph_dictionary)
-        all_ch0_graph_dictionary.append(ch0_graph_dictionary)
+        # all_corrsig_graph_dictionary.append(corrsig_graph_dictionary)
+        # all_ch0_graph_dictionary.append(ch0_graph_dictionary)
 
     data.regressed_signals = all_regressed_signals
     if controller is not None:
@@ -125,9 +126,9 @@ def regression_func(traces):
             target_trace_b, target_trace_b_r = bin_trials(
                 target_trace, binsize)
             # This Calculates the studentized residuals which regresses the correction fiber out
-            res_studentized_b = calculate_studentized_residuals(
+            res_studentized_b = calculate_studentized_residuals_3(
                 control_trace_b, target_trace_b)
-            res_studentized_b_r = calculate_studentized_residuals(
+            res_studentized_b_r = calculate_studentized_residuals_3(
                 control_trace_b_r, target_trace_b_r)
             # debinned_reg_residuals = debin_me(corrsig_x_values, corrsig_x_values_r, binsize)
             # debinned_line_bestfit = debin_me(corrsig_y_values, corrsig_y_values_r, binsize)
@@ -151,9 +152,9 @@ def regression_func(traces):
             target_channel_b = regions_correction_fiber_regressed_b[f'{region}_{channel}_b']
             target_channel_b_r = regions_correction_fiber_regressed_b_r[f'{region}_{channel}_b_r']
             # Regresses the control channel from the target channel
-            res_studentized_b = calculate_studentized_residuals(
+            res_studentized_b = calculate_studentized_residuals_3(
                 control_channel_b, target_channel_b)
-            res_studentized_b_r = calculate_studentized_residuals(
+            res_studentized_b_r = calculate_studentized_residuals_3(
                 control_channel_b_r, target_channel_b_r)
             # Debins the residuals to create a unified dataset
             debinned_region_residuals = debin_me(res_studentized_b, res_studentized_b_r, binsize)
@@ -258,6 +259,61 @@ def calculate_studentized_residuals(X, Y):
 
     return studentized_residuals.flatten() if studentized_residuals.ndim == 1 else studentized_residuals
 
+def calculate_studentized_residuals_2(X, Y):
+    # This logic is here to quickly exit the function if their is no binned remainder
+    try:
+        num_trials = X.shape[1]
+    except AttributeError:
+        return None
+    studentized_residuals = np.full(Y.shape, np.nan, dtype=np.float64)
+    internally_studentized_residuals= np.full(Y.shape, np.nan, dtype=np.float64)
+    for i in range(num_trials):
+        mean_X = np.nanmean(X[:, i])
+        mean_Y = np.nanmean(Y[:, i])
+        n = len(X)
+        diff_mean_sqr = np.dot((X[:, i] - mean_X), (X[:, i] - mean_X))
+        beta1 = np.dot((X[:, i] - mean_X), (Y[:, i] - mean_Y)) / diff_mean_sqr
+        beta0 = mean_Y - beta1 * mean_X
+        y_hat = beta0 + beta1 * X[:, i]
+        residuals = Y[:, i] - y_hat
+        h_ii = (X[:, i] - mean_X) ** 2 / diff_mean_sqr + (1 / n)
+        Var_e = np.sqrt(sum((Y[:, i] - y_hat) ** 2) / (n - 2))
+        SE_regression = Var_e * ((1 - h_ii) ** 0.5)
+        internally_studentized_residuals[:, i] = residuals / SE_regression
+        r = internally_studentized_residuals[:, i]
+        n = len(r)
+        studentized_residuals[:, i] = [r_i * np.sqrt((n - 2 - 1) / (n - 2 - r_i ** 2)) for r_i in r]
+
+    return studentized_residuals.flatten() if studentized_residuals.ndim == 1 else studentized_residuals
+
+def calculate_studentized_residuals_3(X, Y):
+    # This logic is here to quickly exit the function if their is no binned remainder
+    try:
+        num_trials = X.shape[1]
+    except AttributeError:
+        return None
+    studentized_residuals = np.full(Y.shape, np.nan, dtype=np.float64)
+    internally_studentized_residuals= np.full(Y.shape, np.nan, dtype=np.float64)
+    for i in range(num_trials):
+        mean_X = np.nanmean(X[:, i])
+        mean_Y = np.nanmean(Y[:, i])
+        n = len(X)
+        diff_mean_sqr = np.dot((X[:, i] - mean_X), (X[:, i] - mean_X))
+        beta1 = np.dot((X[:, i] - mean_X), (Y[:, i] - mean_Y)) / diff_mean_sqr
+        beta0 = mean_Y - beta1 * mean_X
+        y_hat = beta0 + beta1 * X[:, i]
+        residuals = Y[:, i] - y_hat
+        h_ii = (X[:, i] - mean_X) ** 2 / diff_mean_sqr + (1 / n)
+        MSE = sum((Y[:, i] - y_hat) ** 2) / (n-2)
+        SE_regression = ((MSE * (1 - h_ii)) ** 0.5)
+        internally_studentized_residuals[:, i] = residuals / SE_regression
+        r = internally_studentized_residuals[:, i]
+        n = len(r)
+        studentized_residuals[:, i] = [r_i * np.sqrt((n - 2 - 1) / (n - 2 - r_i ** 2)) for r_i in r]
+
+    return studentized_residuals.flatten() if studentized_residuals.ndim == 1 else studentized_residuals
+
+
 def debin_me(binned_signal, binned_signal_remainder, binsize):
     """
     Debin binned signals back to the original structure.
@@ -334,13 +390,26 @@ def plot_line_and_residuals(X, Y, predicted_values, label):
 #     Y = residuals + bestfit  # Recreate the original data points
 #
 #     plot_line_and_residuals(X, Y, bestfit, label="Channel 0")
+def save_list_to_csv(data_list, prefix):
+    for idx, run_data in enumerate(data_list):
+        for signal_name, signal_data in run_data.items():
+            # Convert numpy array to pandas DataFrame
+            df = pd.DataFrame(signal_data)
+            # Define the CSV filename
+            csv_filename = f"{prefix}_run{idx+1}_{signal_name}.csv"
+            # Save to CSV
+            df.to_csv(csv_filename, index=False)
+            print(f"Saved {signal_name} to {csv_filename}")
 
 
 if __name__ == "__main__":
-    with open('exampledata.pkl', 'rb') as f:
+    with open('fake_data_with_peaks.pkl', 'rb') as f:
         loaded_data = pickle.load(f)
+    print(loaded_data.traces_by_run_signal_trial.keys())
+
     binsize = 1
     all_regressed_signals = regression_main(loaded_data)
 
+    save_list_to_csv(all_regressed_signals, 'regressed3')
 
 
