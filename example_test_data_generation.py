@@ -17,11 +17,11 @@ class FakeData(MSPData):
         b_laser_fluct = self.sig_s(100, 5)
         
         v_noise = self.randpeaks(100, 40)
-        true_sig = self.randpeaks(100, 20)
+        self.true_sig = self.randpeaks(100, 20)
         self.traces_by_run_signal_trial = {
             'run1': {
                 'sig_region1_ch0': np.expand_dims(v_laser_fluct + v_noise, axis=1),  # Trials as columns
-                'sig_region1_ch1': np.expand_dims(b_laser_fluct + true_sig + v_noise, axis=1),  # Trials as columns
+                'sig_region1_ch1': np.expand_dims(b_laser_fluct + self.true_sig + v_noise, axis=1),  # Trials as columns
                 'sig_corrsig_ch0': np.expand_dims(v_laser_fluct, axis=1),  # Trials as columns
                 'sig_corrsig_ch1': np.expand_dims(b_laser_fluct, axis=1),  # Trials as columns
             }
