@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from statsmodels.formula.api import ols
 import pandas as pd
 from MSPhotom.data import MSPData
-from MSPhotom.analysis.testing_regression import FakeMSPData
+from MSPhotom.analysis.regression_test import FakeMSPData
 
 """
 TODO - 7/9/24 - MM
@@ -39,7 +39,7 @@ Remember that you need to have code that will work with NaN input (remove/mask p
 """
 
 
-
+binsize = 1
 
 def regression_main(data: MSPData, controller=None):
     """
@@ -409,7 +409,5 @@ if __name__ == "__main__":
 
     binsize = 1
     all_regressed_signals = regression_main(loaded_data)
-
-    save_list_to_csv(all_regressed_signals, 'regressed3')
 
 
