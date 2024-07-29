@@ -27,14 +27,14 @@ class RegressionTab(tk.Frame):
         graphbuttoncanvas.grid(column=4, row=10, padx=(0,10), pady=10, sticky="w", columnspan=1, rowspan=8)
 
         # Buttons
-        self.loadbutton = tk.Button(buttoncanvas, text="Set Bin")
+        self.load_button = tk.Button(buttoncanvas, text="Set Bin")
         self.regress_button = tk.Button(buttoncanvas, text="REGRESS!!!")
         self.reset_button = tk.Button(buttoncanvas, text="RESET")
         self.rnd_channel_button = tk.Button(graphbuttoncanvas, text="Corrsig Test Graph")
         self.rnd_region_button = tk.Button(graphbuttoncanvas, text="Ch0 Test Graph")
         self.reset_graph_button = tk.Button(graphbuttoncanvas, text="Reset Graph")
 
-        self.loadbutton.grid(column=0, row=1, padx=0, pady=(0, 10), sticky="se")
+        self.load_button.grid(column=0, row=1, padx=0, pady=(0, 10), sticky="se")
         self.regress_button.grid(column=0, row=2, padx=0, pady=(0, 10), sticky="se")
         self.reset_button.grid(column=0, row=3, padx=2, pady=(0, 10), sticky="se")
 
@@ -45,14 +45,17 @@ class RegressionTab(tk.Frame):
         self.regress_button["state"] = "disabled"
         self.rnd_channel_button["state"] = "disabled"
         self.rnd_region_button["state"] = "disabled"
+        self.load_button["state"] = "disabled"
 
         # String Variables and Defaults
         self.bin_size = tk.StringVar()
         self.splits1 = tk.StringVar()
         self.splits2 = tk.StringVar()
+        #TODO change the three variables below to use the data provided in the drop down
         self.ch_select = tk.StringVar()
         self.run_select = tk.StringVar()
         self.reg_select = tk.StringVar()
+
         self.trial_select = tk.StringVar()
         self.splits1.set("Not")
         self.splits2.set("Implemented")
@@ -72,9 +75,18 @@ class RegressionTab(tk.Frame):
         tk.Label(self, width=13, text="Temp Trials", anchor='w', bg='white').grid(column=1, row=1, padx=7, pady=0, sticky="nw")
         tk.Label(self, width=13, text="Temp Regions", anchor='w', bg='white').grid(column=2, row=1, padx=(7,0),
                                                                                pady=0, sticky="nw")
-        tk.Entry(self, width=15, textvariable=self.bin_size).grid(column=0, row=3, padx=7, pady=(0, 10), sticky="nw")
-        tk.Entry(self, width=15, textvariable=self.splits1).grid(column=1, row=3, padx=7, pady=(0, 10), sticky="nw")
-        tk.Entry(self, width=15, textvariable=self.splits2).grid(column=2, row=3, padx=(7,0), pady=(0, 10), sticky="nw")
+        self.binsizeentry = tk.Entry(self, width=15, textvariable=self.bin_size)
+        self.split1entry = tk.Entry(self, width=15, textvariable=self.splits1)
+        self.split2entry = tk.Entry(self, width=15, textvariable=self.splits2)
+
+        self.binsizeentry.grid(column=0, row=3, padx=7, pady=(0, 10), sticky="nw")
+        self.split1entry.grid(column=1, row=3, padx=7, pady=(0, 10), sticky="nw")
+        self.split2entry.grid(column=2, row=3, padx=(7,0), pady=(0, 10), sticky="nw")
+
+        self.binsizeentry["state"] = "disabled"
+        self.split1entry["state"] = "disabled"
+        self.split2entry["state"] = "disabled"
+
         # Static Labels
         tk.Label(self, text="Bin Size", anchor="w", width=15).grid(column=0, row=2, padx=7, pady=(10, 0), sticky='ew')
         tk.Label(self, text="Split 1(Seconds)", anchor="w", width=15).grid(column=1, row=2, padx=7, pady=(10, 0), sticky='ew')
@@ -85,10 +97,20 @@ class RegressionTab(tk.Frame):
         tk.Label(graphbuttoncanvas, text="Region Select", anchor="w").grid(column=0,row=4, sticky="sw")
         tk.Label(graphbuttoncanvas, text="Trial Select", anchor="w").grid(column=0, row=6, sticky="sw")
 
-        tk.Entry(graphbuttoncanvas, textvariable=self.run_select).grid(column=0, row=1, pady=(0, 10), sticky="sw")
-        tk.Entry(graphbuttoncanvas, textvariable=self.ch_select).grid(column=0,row=3, pady=(0, 10), sticky="sw")
-        tk.Entry(graphbuttoncanvas, textvariable=self.reg_select).grid(column=0,row=5, pady=(0, 10), sticky="sw")
-        tk.Entry(graphbuttoncanvas, textvariable=self.trial_select).grid(column=0, row=7, pady=(0, 10), sticky="sw")
+        self.run_selector = ttk.Combobox(graphbuttoncanvas, width=15, state="readonly", values=self.run_select)
+        self.run_selector.grid(column=0, row=1, pady=(0, 10), sticky="sw")
+        self.ch_selector = ttk.Combobox(graphbuttoncanvas, width=15, state="readonly", values=self.ch_select)
+        self.ch_selector.grid(column=0, row=3, pady=(0, 10), sticky="sw")
+        self.reg_selector = ttk.Combobox(graphbuttoncanvas, width=15, state="readonly", values=self.reg_select)
+        self.reg_selector.grid(column=0, row=5, pady=(0, 10), sticky="sw")
+        self.trial_selector = tk.Entry(graphbuttoncanvas, width=18, textvariable=self.trial_select)
+        self.trial_selector.grid(column=0, row=7, pady=(0, 10), sticky="sw")
+
+        self.run_selector["state"] = "disabled"
+        self.ch_selector["state"] = "disabled"
+        self.reg_selector["state"] = "disabled"
+        self.trial_selector["state"] = "disabled"
+
         # Progress Bars
 
         self.runprog = ttk.Progressbar(self, orient="horizontal", length=480, mode="determinate")
