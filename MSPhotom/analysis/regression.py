@@ -198,8 +198,11 @@ def bin_trials(signal : np.ndarray, binsize):
         tuple: Tuple containing binned signal and remainder trials signal.
     """
     # Take an arbitrary amount of trials and bin them together for less noisy processing
-    trial_length = signal.shape[0]
-    num_trials = signal.shape[1]
+    match signal.shape:
+        case (trial_length, num_trials):
+            pass
+        case (trial_length):
+            num_trials = 1
 
     # Calculates new amount of columns for reshaping the binned data
     num_binned_columns = (num_trials // binsize)

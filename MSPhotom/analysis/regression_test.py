@@ -4,6 +4,7 @@ import pandas as pd
 #hey world
 class FakeMSPData:
     def __init__(self):
+        
         self.traces_by_run_signal_trial = {
             'run1': {
                 'sig_region1_ch0': self.generate_signal_with_peaks(10, 100, 0.1, 2),  # Trials as columns
@@ -30,6 +31,18 @@ class FakeMSPData:
                                                    size=(num_points, num_trials))  # Shape: (num_points, num_trials)
         residuals[::10, :] += peak_height  # Add peaks every 5th point
         return residuals
+    
+    @staticmethod
+    def sig_s(num_points, const):
+        time = np.arange(num_points)
+        return np.sin(const * np.pi * time / (num_points))
+    
+    @staticmethod
+    def randpeaks(num_points, num_peaks):
+        time = np.zeros(num_points)
+        for i in range(num_peaks):
+            time[random.randint(0, num_points-1)] = 10
+        return time
 
 def save_fake_data(filename):
     data = FakeMSPData()
