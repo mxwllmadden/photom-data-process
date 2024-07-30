@@ -25,19 +25,23 @@ def regression_main(data: MSPData, controller=None):
         controller (optional): Controller object to update data if provided.
 
     Returns:
-        list: List of dictionaries containing regressed signals for each run.
+        Dict: A dictionary containing dictionaries of regressed signals for each run.
     """
+    # Initializes the main dictionary
     all_regressed_signals = {}
+    # Extracts the data we need
     traces_by_run = data.traces_by_run_signal_trial
-    binsize = 1
+    binsize = 1 # Temp
     # Iterate through each run in the nested dictionary
     for run_key, run_dict in traces_by_run.items():
         # print(f"Processing run: {run_key}")
         # Assign the nested dictionary (traces within each run) to `traces`
         traces = run_dict
-        regressed_signals = regression_func(traces, binsize, run_key)  # CHANGE THIS TO dict_run_signal
+        # Does the regression and outputs regression dictionary
+        regressed_signals = regression_func(traces, binsize, run_key)
         all_regressed_signals[run_key] = regressed_signals
 
+    # Temp data updating
     data.regressed_signals = all_regressed_signals
     if controller is not None:
         controller.update_data(data)
@@ -70,16 +74,12 @@ def regression_func(traces, binsize, run_key):
 
     # Removes duplicate channel and region names
     unique_channels = unique_list(channel_names)
-    print(unique_channels)
     unique_regions = unique_list(region_names)
-    print(unique_regions)
     unique_channels_ch0_removed = unique_list(channel_names_ch0_removed)
 
     # Initializes blank dictionaries to be filled by regression
     regions_correction_fiber_regressed_b = {}
     regions_correction_fiber_regressed_b_r = {}
-    corrsig_graph_dictionary = {}
-    ch0_graph_dictionary = {}
     region_residuals_ch0_regressed = {}
 
     # This first for loop regresses the correction fiber out
@@ -230,42 +230,54 @@ def calculate_studentized_residuals(X, Y):
     Studentized Residuals (numpy.ndarray) :
         The residuals divided by an estimator of their error to standardize them on a z-score scale
     """
+    # This logic is here to skip None type objects getting through
     try:
         X.shape
     except AttributeError:
         return None
+    # Logic is here to extract num_trials from a 1 and 2 dimensional array
     match X.shape:
         case (trial_length, num_trials):
             pass  # num_trials is already assigned
         case (trial_length, ):
             num_trials = 1
 
-
+    # Initializes Blank arrays
     studentized_residuals = np.full(Y.shape, np.nan, dtype=np.float64)
     internally_studentized_residuals = np.full(Y.shape, np.nan, dtype=np.float64)
+    # For loop to go trial by trial
     for i in range(num_trials):
+        # Do calculations using valid values(not nans)
         valid_mask = ~np.isnan(X[:, i]) & ~np.isnan(Y[:, i])
+        # Masks are used to ensure data does not lose its position when removing nans
         X_valid = X[valid_mask, i]
         Y_valid = Y[valid_mask, i]
 
+        # Calculate means for further calculations
         mean_X = np.nanmean(X[:, i])
         mean_Y = np.nanmean(Y[:, i])
 
+        # This calculates the residuals(not studentized yet)
         n = len(X_valid)
         diff_mean_sqr = np.dot((X_valid - mean_X), (X_valid - mean_X))
         beta1 = np.dot((X_valid - mean_X), (Y_valid - mean_Y)) / diff_mean_sqr
         beta0 = mean_Y - beta1 * mean_X
         y_hat = beta0 + beta1 * X_valid
-
         residuals_valid = Y_valid - y_hat
+
+        # Calculates the leverage value
         h_ii = (X_valid - mean_X) ** 2 / diff_mean_sqr + (1 / n)
 
+        #Calculates the internally studentized MSE(current value included)
         MSE = sum((Y_valid - y_hat) ** 2) / (n - 2)
         SE_regression = ((MSE * (1 - h_ii)) ** 0.5)
 
+        # np.where logic is to ensure residuals get encoded as zero instead of nans if sum((Y_valid - y_hat) = 0
         internally_studentized_residuals_valid = np.where(SE_regression != 0, residuals_valid / SE_regression, 0)
+        # Returns internally studentized residuals to their correct location using the valid mask
         internally_studentized_residuals[valid_mask, i] = internally_studentized_residuals_valid
 
+        # Converts internally studentized residuals to externally studentized residuals Note: Formula found in links
         r = internally_studentized_residuals_valid
         n = len(r)
         studentized_residuals_valid = [r_i * np.sqrt((n - 2 - 1) / (n - 2 - r_i ** 2)) for r_i in r]
@@ -292,7 +304,7 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
         Debinned signal array.
     """
     # This converts the binned signals back to initial array structure
-    # Calculations to get the correct array sizes to ensure proper concatenation
+    # Logic is here to extract num_bin_trials from a 1 and 2 dimensional array
     match binned_signal.shape:
         case (bin_length, num_bin_trials):
             pass  # num_bin_trials is already assigned
@@ -300,12 +312,9 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
             num_bin_trials = 1
             pass
 
-    # bin_length = binned_signal.shape[0]
-    # num_bin_trials = binned_signal.shape[1]
+    # Calculations to get the correct array sizes to ensure proper concatenation
     trial_length = bin_length // binsize
     total_trials = num_bin_trials * binsize
-
-    # Combines the remainder array back into the primary array.
 
     # Reshapes the arrays to have equal row lengths equal to the initial trial lengths
     net_res_reshaped = binned_signal.reshape(
@@ -313,9 +322,11 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
     if binned_signal_remainder == None:
         return net_res_reshaped
 
+    # More reshaping math
     r_bin_length = binned_signal_remainder.shape[0]
     r_total_trials = r_bin_length // trial_length
 
+    # Combines the remainder array back into the primary array.
     net_res_reshaped_r = binned_signal_remainder.reshape(
         (trial_length, r_total_trials), order='F')
     net_res_debinned = np.concatenate(
