@@ -1,17 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 Perform Studentized Residual Regression from organized trace data
 """
 
 from typing import Dict, Type
 import numpy as np
-from scipy import stats
 import pickle
 import matplotlib.pyplot as plt
-from statsmodels.formula.api import ols
-import pandas as pd
 from MSPhotom.data import MSPData
-from MSPhotom.analysis.regression_test2 import FakeData
 
 """
 TODO - 7/9/24 - MM
@@ -323,9 +318,6 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
     net_res_debinned = np.concatenate(
         [net_res_reshaped, net_res_reshaped_r], axis=1)
     return net_res_debinned
-
-
-
 
 if __name__ == "__main__":
     with open('f_dat.pkl', 'rb') as f:

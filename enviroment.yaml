@@ -10,5 +10,4 @@ dependencies:
   - pyinstaller
   - python=3.11
   - scipy
-  - statsmodels
   - spyder-kernels>=2.5
