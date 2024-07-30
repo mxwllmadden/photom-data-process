@@ -1,12 +1,12 @@
 """
 Perform Studentized Residual Regression from organized trace data
 """
-
 from typing import Dict, Type
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 from MSPhotom.data import MSPData
+# from MSPhotom.analysis.regression_test2 import FakeData
 
 """
 TODO - 7/9/24 - MM
@@ -293,12 +293,15 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
     """
     # This converts the binned signals back to initial array structure
     # Calculations to get the correct array sizes to ensure proper concatenation
-    try:
-        binned_signal.shape[1]
-    except AttributeError:
-        return None
-    bin_length = binned_signal.shape[0]
-    num_bin_trials = binned_signal.shape[1]
+    match binned_signal.shape:
+        case (bin_length, num_bin_trials):
+            pass  # num_bin_trials is already assigned
+        case (bin_length, ):
+            num_bin_trials = 1
+            pass
+
+    # bin_length = binned_signal.shape[0]
+    # num_bin_trials = binned_signal.shape[1]
     trial_length = bin_length // binsize
     total_trials = num_bin_trials * binsize
 
@@ -325,3 +328,4 @@ if __name__ == "__main__":
     print(loaded_data.traces_by_run_signal_trial.keys())
 
     all_regressed_signals = regression_main(loaded_data)
+    print(all_regressed_signals)
