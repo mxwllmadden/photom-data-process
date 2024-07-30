@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from statsmodels.formula.api import ols
 import pandas as pd
 from MSPhotom.data import MSPData
-from MSPhotom.analysis.regression_test import FakeMSPData
+from MSPhotom.analysis.testing_regression import FakeMSPData
 
 """
 TODO - 7/9/24 - MM
@@ -39,6 +39,8 @@ Remember that you need to have code that will work with NaN input (remove/mask p
 """
 
 
+
+
 def regression_main(data: MSPData, controller=None):
     """
     Perform regression on the data traces organized by runs and return regressed signals.
@@ -50,7 +52,7 @@ def regression_main(data: MSPData, controller=None):
     Returns:
         list: List of dictionaries containing regressed signals for each run.
     """
-    all_regressed_signals = []  #TODO: RENAME TO LIST OR BETTER, USE DICTIONARY -MM 7.16.24
+    all_regressed_signals = [] #TODO: RENAME TO LIST OR BETTER, USE DICTIONARY -MM 7.16.24
     all_corrsig_graph_dictionary = []
     all_ch0_graph_dictionary = []
     traces_by_run = data.traces_by_run_signal_trial
@@ -112,8 +114,7 @@ def regression_func(traces):
         # Transposes the array to have trials as columns instead of rows
         control_trace = np.transpose(control_trace)
         # bins the control trace
-        control_trace_b, control_trace_b_r = bin_trials(control_trace,
-                                                        binsize)  # TODO: binsize is undefined -MM 7.16.24
+        control_trace_b, control_trace_b_r = bin_trials(control_trace, binsize) # TODO: binsize is undefined -MM 7.16.24
 
         # For each unique region, the correction fiber is regressed out of the binned traces
         for region in unique_regions:
@@ -139,6 +140,7 @@ def regression_func(traces):
             regions_correction_fiber_regressed_b[f'{region}_{channel}_b'] = res_studentized_b
             regions_correction_fiber_regressed_b_r[f'{region}_{channel}_b_r'] = res_studentized_b_r
 
+
     # This for loop regresses ch0 out to output residuals for each region by channel
     for region in unique_regions:
         # Assigns ch0 as the control channel to be regressed out
@@ -156,6 +158,7 @@ def regression_func(traces):
                 control_channel_b_r, target_channel_b_r)
             # Debins the residuals to create a unified dataset
             debinned_region_residuals = debin_me(res_studentized_b, res_studentized_b_r, binsize)
+
 
             # ch0_graph_dictionary[f'{region}_{channel}_residuals'] = debinned_reg_residuals2
             # ch0_graph_dictionary[f'{region}_{channel}_bestfit'] = debinned_line_bestfit2
@@ -183,7 +186,7 @@ def unique_list(iterable):
     return new_list
 
 
-def bin_trials(signal: np.ndarray, binsize):
+def bin_trials(signal : np.ndarray, binsize):
     """
     Bin trials of a signal into groups for noise reduction.
 
@@ -195,11 +198,8 @@ def bin_trials(signal: np.ndarray, binsize):
         tuple: Tuple containing binned signal and remainder trials signal.
     """
     # Take an arbitrary amount of trials and bin them together for less noisy processing
-    match signal.shape:
-        case (trial_length, num_trials):
-            pass  # num_trials is already assigned
-        case (trial_length, ):
-            num_trials = 1
+    trial_length = signal.shape[0]
+    num_trials = signal.shape[1]
 
     # Calculates new amount of columns for reshaping the binned data
     num_binned_columns = (num_trials // binsize)
@@ -227,7 +227,7 @@ def bin_trials(signal: np.ndarray, binsize):
 
 
 def calculate_studentized_residuals(X, Y):
-    # This logic is here to quickly exit the function if there is no binned remainder
+    # This logic is here to quickly exit the function if their is no binned remainder
     try:
         num_trials = X.shape[1]
     except AttributeError:
@@ -259,61 +259,60 @@ def calculate_studentized_residuals(X, Y):
 
     return studentized_residuals.flatten() if studentized_residuals.ndim == 1 else studentized_residuals
 
-
-def calculate_studentized_residuals_3(X, Y):
-    # This logic is here to quickly exit the function if there is no binned remainder
-    """
-    This Function calculates internally studentized residuals and externally(deleted) studentized residuals.
-    This function has also been checked against the statsmodels package 0.14.0.
-    Below are some useful links to understand studentization:
-    https://online.stat.psu.edu/stat501/lesson/11/11.4
-    https://www.mathworks.com/help/stats/residuals.html
-    Parameters
-    ----------
-    X : numpy.ndarray
-        an array of data with columns being trails or binned trials to be regressed out
-    Y : numpy.ndarray
-        The dependent variable array, won't be regressed out
-    Returns
-    -------
-    Studentized Residuals : numpy.ndarray
-        The residuals divided by an estimator of their error to standardize them on a z-score scale
-    """
-    match X.shape:
-        case (trial_length, num_trials):
-            pass  # num_trials is already assigned
-        case (trial_length, ):
-            num_trials = 1
-
-
+def calculate_studentized_residuals_2(X, Y):
+    # This logic is here to quickly exit the function if their is no binned remainder
+    try:
+        num_trials = X.shape[1]
+    except AttributeError:
+        return None
     studentized_residuals = np.full(Y.shape, np.nan, dtype=np.float64)
-    internally_studentized_residuals = np.full(Y.shape, np.nan, dtype=np.float64)
+    internally_studentized_residuals= np.full(Y.shape, np.nan, dtype=np.float64)
     for i in range(num_trials):
-        valid_mask = ~np.isnan(X[:, i]) & ~np.isnan(Y[:, i])
-        X_valid = X[valid_mask, i]
-        Y_valid = Y[valid_mask, i]
         mean_X = np.nanmean(X[:, i])
         mean_Y = np.nanmean(Y[:, i])
-        n = len(X_valid)
-        diff_mean_sqr = np.dot((X_valid - mean_X), (X_valid - mean_X))
-        beta1 = np.dot((X_valid - mean_X), (Y_valid - mean_Y)) / diff_mean_sqr
-
+        n = len(X)
+        diff_mean_sqr = np.dot((X[:, i] - mean_X), (X[:, i] - mean_X))
+        beta1 = np.dot((X[:, i] - mean_X), (Y[:, i] - mean_Y)) / diff_mean_sqr
         beta0 = mean_Y - beta1 * mean_X
-        y_hat = beta0 + beta1 * X_valid
-
-        residuals_valid = Y_valid - y_hat
-        h_ii = (X_valid - mean_X) ** 2 / diff_mean_sqr + (1 / n)
-        MSE = sum((Y_valid - y_hat) ** 2) / (n - 2)
-        SE_regression = ((MSE * (1 - h_ii)) ** 0.5)
-        internally_studentized_residuals_valid = np.where(SE_regression != 0, residuals_valid / SE_regression, 0)
-        internally_studentized_residuals[valid_mask, i] = internally_studentized_residuals_valid
-        r = internally_studentized_residuals_valid
+        y_hat = beta0 + beta1 * X[:, i]
+        residuals = Y[:, i] - y_hat
+        h_ii = (X[:, i] - mean_X) ** 2 / diff_mean_sqr + (1 / n)
+        Var_e = np.sqrt(sum((Y[:, i] - y_hat) ** 2) / (n - 2))
+        SE_regression = Var_e * ((1 - h_ii) ** 0.5)
+        internally_studentized_residuals[:, i] = residuals / SE_regression
+        r = internally_studentized_residuals[:, i]
         n = len(r)
-        studentized_residuals_valid = [r_i * np.sqrt((n - 2 - 1) / (n - 2 - r_i ** 2)) for r_i in r]
-        studentized_residuals[valid_mask, i] = studentized_residuals_valid
+        studentized_residuals[:, i] = [r_i * np.sqrt((n - 2 - 1) / (n - 2 - r_i ** 2)) for r_i in r]
 
-    return Y_valid, internally_studentized_residuals_valid, internally_studentized_residuals, studentized_residuals
-# .flatten() if studentized_residuals.ndim == 1 else studentized_residuals
+    return studentized_residuals.flatten() if studentized_residuals.ndim == 1 else studentized_residuals
+
+def calculate_studentized_residuals_3(X, Y):
+    # This logic is here to quickly exit the function if their is no binned remainder
+    try:
+        num_trials = X.shape[1]
+    except AttributeError:
+        return None
+    studentized_residuals = np.full(Y.shape, np.nan, dtype=np.float64)
+    internally_studentized_residuals= np.full(Y.shape, np.nan, dtype=np.float64)
+    for i in range(num_trials):
+        mean_X = np.nanmean(X[:, i])
+        mean_Y = np.nanmean(Y[:, i])
+        n = len(X)
+        diff_mean_sqr = np.dot((X[:, i] - mean_X), (X[:, i] - mean_X))
+        beta1 = np.dot((X[:, i] - mean_X), (Y[:, i] - mean_Y)) / diff_mean_sqr
+        beta0 = mean_Y - beta1 * mean_X
+        y_hat = beta0 + beta1 * X[:, i]
+        residuals = Y[:, i] - y_hat
+        h_ii = (X[:, i] - mean_X) ** 2 / diff_mean_sqr + (1 / n)
+        MSE = sum((Y[:, i] - y_hat) ** 2) / (n-2)
+        SE_regression = ((MSE * (1 - h_ii)) ** 0.5)
+        internally_studentized_residuals[:, i] = residuals / SE_regression
+        r = internally_studentized_residuals[:, i]
+        n = len(r)
+        studentized_residuals[:, i] = [r_i * np.sqrt((n - 2 - 1) / (n - 2 - r_i ** 2)) for r_i in r]
+
+    return studentized_residuals.flatten() if studentized_residuals.ndim == 1 else studentized_residuals
+
 
 def debin_me(binned_signal, binned_signal_remainder, binsize):
     """
@@ -352,14 +351,52 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
     return net_res_debinned
 
 
+def plot_line_and_residuals(X, Y, predicted_values, label):
 
+    plt.figure(figsize=(10, 6))
+    plt.plot(X, Y, 'o', label=f"{label} Data")
+    plt.plot(X, predicted_values, 'r', label=f"{label} Line of Best Fit")
+    # for i in range(len(X)):
+    #    plt.plot([X[i], X[i]], [Y[i], predicted_values[i]], 'k--')
+
+    plt.legend()
+    plt.title(f"{label} Residuals Plot")
+    plt.xlabel('Traces')
+    plt.ylabel('Studentized Residual Distance(Z-Scores)')
+    plt.show()
+
+
+# def plot_corrsigres(corrsig_graph_dictionary, g_region, g_channel, g_trial):
+#     residuals_key = f'{g_region}_{g_channel}_residuals'
+#     bestfit_key = f'{g_region}_{g_channel}_bestfit'
+#
+#     residuals = corrsig_graph_dictionary[residuals_key][:, g_trial]
+#     bestfit = corrsig_graph_dictionary[bestfit_key][:, g_trial]
+#
+#     X = np.arange(len(residuals))
+#     Y = residuals + bestfit  # Recreate the original data points
+#
+#     plot_line_and_residuals(X, Y, bestfit, label="Corrsig")
+#
+#
+# def plot_ch0res(ch0_graph_dictionary, g_region, g_channel, g_trial):
+#     residuals_key = f'{g_region}_{g_channel}_residuals'
+#     bestfit_key = f'{g_region}_{g_channel}_bestfit'
+#
+#     residuals = ch0_graph_dictionary[residuals_key][:, g_trial]
+#     bestfit = ch0_graph_dictionary[bestfit_key][:, g_trial]
+#
+#     X = np.arange(len(residuals))
+#     Y = residuals + bestfit  # Recreate the original data points
+#
+#     plot_line_and_residuals(X, Y, bestfit, label="Channel 0")
 def save_list_to_csv(data_list, prefix):
     for idx, run_data in enumerate(data_list):
         for signal_name, signal_data in run_data.items():
             # Convert numpy array to pandas DataFrame
             df = pd.DataFrame(signal_data)
             # Define the CSV filename
-            csv_filename = f"{prefix}_run{idx + 1}_{signal_name}.csv"
+            csv_filename = f"{prefix}_run{idx+1}_{signal_name}.csv"
             # Save to CSV
             df.to_csv(csv_filename, index=False)
             print(f"Saved {signal_name} to {csv_filename}")
@@ -374,3 +411,5 @@ if __name__ == "__main__":
     all_regressed_signals = regression_main(loaded_data)
 
     save_list_to_csv(all_regressed_signals, 'regressed3')
+
+
