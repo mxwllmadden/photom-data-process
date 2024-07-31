@@ -60,7 +60,7 @@ def process_main(data,
     data.traces_raw_by_run_reg = traces_raw_by_run_reg
     data.traces_by_run_signal_trial = traces_by_run_signal_trial
     if controller is not None:
-        controller.view.update_state('RG - Ready for Regression')
+        controller.view.update_state('RG - Regression Done Ready to Graph')
         controller.view.image_tab.longprog['value'] = 100
         controller.view.image_tab.runprog['value'] = 100
         controller.view.image_tab.shortprogstat.set('All Images Processed')

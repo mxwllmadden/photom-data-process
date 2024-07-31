@@ -21,31 +21,36 @@ class RegressionTab(tk.Frame):
         # Organizational Canvas
         buttoncanvas = tk.Canvas(self)
         buttoncanvas.grid(column=4, row=0, padx=(0,10), pady=0, sticky="e", rowspan=4)
-        graphcanvas = tk.Canvas(self, bg="white", width=320, height=320)
-        graphcanvas.grid(column=0, row=10, padx=(10,0), pady=10, sticky="nw", columnspan=4, rowspan=2)
+        graphcanvas = tk.Canvas(self, bg="white", width=320, height=320, highlightbackground="#5C5C5C", highlightthickness=1)
+        graphcanvas.grid(column=0, row=10, padx=(10,0), pady=(23,0), sticky="nw", columnspan=4, rowspan=2)
         graphbuttoncanvas = tk.Canvas(self, height=320)
-        graphbuttoncanvas.grid(column=4, row=10, padx=(0,10), pady=10, sticky="w", columnspan=1, rowspan=8)
+        graphbuttoncanvas.grid(column=4, row=10, padx=(0,10), pady=(5,0), sticky="nw", columnspan=1, rowspan=8)
 
         # Buttons
         self.load_button = tk.Button(buttoncanvas, text="Set Bin")
         self.regress_button = tk.Button(buttoncanvas, text="REGRESS!!!")
         self.reset_button = tk.Button(buttoncanvas, text="RESET")
-        self.rnd_channel_button = tk.Button(graphbuttoncanvas, text="Corrsig Test Graph")
-        self.rnd_region_button = tk.Button(graphbuttoncanvas, text="Ch0 Test Graph")
+        self.graph_channel_button = tk.Button(graphbuttoncanvas, text="Corrsig Test Graph")
+        self.graph_region_button = tk.Button(graphbuttoncanvas, text="Ch0 Test Graph")
         self.reset_graph_button = tk.Button(graphbuttoncanvas, text="Reset Graph")
+        self.input_graph_params = tk.Button(graphbuttoncanvas, text="Input Params")
 
         self.load_button.grid(column=0, row=1, padx=0, pady=(0, 10), sticky="se")
         self.regress_button.grid(column=0, row=2, padx=0, pady=(0, 10), sticky="se")
         self.reset_button.grid(column=0, row=3, padx=2, pady=(0, 10), sticky="se")
 
-        self.rnd_channel_button.grid(column=0, row=8, padx=0, pady=(0, 10), sticky="sw")
-        self.rnd_region_button.grid(column=0, row=9, padx=0, pady=(0, 10), sticky="sw")
-        self.reset_graph_button.grid(column=0, row=10, padx=0, pady=(0, 10), sticky="sw")
+        self.input_graph_params.grid(column=0, row=8, padx=0, pady=(0, 10), sticky="sw")
+        self.graph_channel_button.grid(column=0, row=9, padx=0, pady=(0, 10), sticky="sw")
+        self.graph_region_button.grid(column=0, row=10, padx=0, pady=(0, 10), sticky="sw")
+        self.reset_graph_button.grid(column=0, row=11, padx=0, pady=(0, 10), sticky="sw")
 
         self.regress_button["state"] = "disabled"
-        self.rnd_channel_button["state"] = "disabled"
-        self.rnd_region_button["state"] = "disabled"
+        self.graph_channel_button["state"] = "disabled"
+        self.graph_region_button["state"] = "disabled"
         self.load_button["state"] = "disabled"
+        self.input_graph_params["state"] = "disabled"
+        self.reset_button["state"] = "disabled"
+        self.reset_graph_button["state"] = "disabled"
 
         # String Variables and Defaults
         self.bin_size = tk.StringVar()
@@ -115,7 +120,7 @@ class RegressionTab(tk.Frame):
 
         self.runprog = ttk.Progressbar(self, orient="horizontal", length=480, mode="determinate")
         self.runprog["value"] = 0
-        self.runprog.grid(column=0, row=12, columnspan=6, pady=(15,0))
+        self.runprog.grid(column=0, row=12, columnspan=6, pady=(20,0))
         self.shortprogstat = tk.StringVar()
         self.shortprogstat.set("Regressing Images...")
         tk.Label(self, width=18, textvariable=self.shortprogstat).grid(column=0, row=13, padx=10, pady=0, columnspan=6)

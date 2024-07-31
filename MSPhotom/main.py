@@ -49,6 +49,17 @@ class MSPApp:
         self.view.data_tab.load_data_but.config(
             command=self.load_data)
 
+
+        self.view.regression_tab.reset_button.config(
+            command=self.reset_regression)
+        self.view.regression_tab.reset_graph_button(
+            command=self.reset_graph)
+        self.view.regression_tab.load_button(
+            command=self.input_bin)
+
+        self.view.regression_tab.regress_button(
+            command=self.regress_fibers)
+
         self.refresh_data_view()
         self.view.mainloop()
 
@@ -229,7 +240,8 @@ class MSPApp:
         Update view and start image processing in another thread
         """
         # Update View
-        self.view.update_state('IP - Processing')
+        # TODO Check with Max if this is correct or if it should be in an inbetween state
+        self.view.update_state('RG - Processing Done Ready to Input Bin')
         # Create and initialize the thread for image loading/processing
         pross_thread = threading.Thread(target=analysis.imageprocess.process_main,
                                         args=(self.data,
@@ -282,6 +294,49 @@ class MSPApp:
             self.data = manage.load(file)
         self.set_state_based_on_data()
 
+
+    def reset_regression(self):
+        """
+        Remove data object and create new. Update state accordingly.
+        """
+        # Update View
+        self.view.update_state('RG - Input Bin')
+
+        # Recreate Data
+        self.data = MSPData()
+
+    def reset_graph(self):
+        """
+        Remove data object and create new. Update state accordingly.
+        """
+        # Update View
+        self.view.update_state('RG - Regression Done Ready to Graph')
+
+        # Recreate Data
+        self.data = MSPData()
+
+    def input_bin(self):
+        bin_size = self.view.regression_tab.bin_size
+        if not bin_size.get().isdigit():
+            bin_size.set('ERROR')
+            return
+        bin_size = int(bin_size.get())
+
+        self.view.update_state('RG - Ready to Regress')
+        self.data.bin_size: int = bin_size
+
+    def regress_fibers(self):
+        # Update View
+        self.view.update_state('RG - Regression Done Ready to Graph')
+        # Create and initialize the thread for image loading/processing
+        regress_thread = threading.Thread(target=analysis.regression.regression_main,
+                                        args=(self.data,
+                                              self),
+                                        daemon=True)
+        regress_thread.start()
+
+
+
     def set_state_based_on_data(self):
         """
         Based on the stored data in data object, update view.
@@ -303,8 +358,32 @@ class MSPApp:
                                   'fiber_masks',
                                   'traces_raw_by_run_reg',
                                   'traces_by_run_signal_trial')
+        readytoregress = multikey(self.data.__dict__,
+                                  'bin_size')
+        regressiondone = multikey(self.data.__dict__,
+                                  'regressed_traces_by_run_signal_trial')
+        graphinputs = multikey(self.data.__dict__,
+                                'selected_run',
+                               'selected_channel',
+                               'selected_region'
+                               'selected_trial')
+        chosengraph = multikey(self.data.__dict__,
+                                "graph_of_choice")
+
+        if not all(val is None for val in chosengraph):
+            self.view.update_state('RG - Graphing Done')
+            return
+        if not all(val is None for val in graphinputs):
+            self.view.update_state('RG - Graph Selection')
+            return
+        if not all(val is None for val in regressiondone):
+            self.view.update_state('RG - Regression Done Ready to Graph')
+            return
+        if not all(val is None for val in readytoregress):
+            self.view.update_state('RG - Ready to Regress')
+            return
         if not all(val is None for val in processingdone):
-            self.view.update_state('RG - Ready for Regression')
+            self.view.update_state('RG - Processing Done Ready to Input Bin')
             return
         if not all(val is None for val in regionselect):
             self.view.update_state('IP - Ready to Process')
@@ -318,8 +397,6 @@ class MSPApp:
 
 def multikey(x, *args):
     """
-    
-
     Parameters
     ----------
     x : dict

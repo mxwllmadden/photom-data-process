@@ -38,6 +38,8 @@ class MSPData:
     traces_raw_by_run_reg: Dict[str, Dict[str, np.ndarray]] = None
     traces_by_run_signal_trial: Dict[str, Dict[str, np.ndarray]] = None
 
+    bin_size: int = None
+    regressed_traces_by_run_signal_trial: Dict[str, Dict[str,np.ndarray]] = None
 
 class DataManager:
     def __init__(self, data):
