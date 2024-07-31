@@ -52,12 +52,12 @@ class MSPApp:
 
         self.view.regression_tab.reset_button.config(
             command=self.reset_regression)
-        self.view.regression_tab.reset_graph_button(
+        self.view.regression_tab.reset_graph_button.config(
             command=self.reset_graph)
-        self.view.regression_tab.load_button(
+        self.view.regression_tab.load_button.config(
             command=self.input_bin)
 
-        self.view.regression_tab.regress_button(
+        self.view.regression_tab.regress_button.config(
             command=self.regress_fibers)
 
         self.refresh_data_view()
