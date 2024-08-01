@@ -31,9 +31,7 @@ class ImageProcessTab(tk.Frame):
         self.processbutton.grid(column=0, row=2,padx=0, pady=(0,10), sticky="se")
         self.reset_button.grid(column=0, row=3,padx=2, pady=(0,10), sticky="se")
         
-        self.regselbutton["state"] = "disabled"
-        self.processbutton["state"] = "disabled"
-        
+
         #String Variables and Defaults
         self.topdirectory = tk.StringVar()
         self.date_start = tk.StringVar()

@@ -31,18 +31,20 @@ def regression_main(data: MSPData, controller=None):
     all_regressed_signals = {}
     # Extracts the data we need
     traces_by_run = data.traces_by_run_signal_trial
-    binsize = 1 # Temp
+    binsize = data.bin_size
     # Iterate through each run in the nested dictionary
     for run_key, run_dict in traces_by_run.items():
         # print(f"Processing run: {run_key}")
         # Assign the nested dictionary (traces within each run) to `traces`
         traces = run_dict
         # Does the regression and outputs regression dictionary
-        regressed_signals = regression_func(traces, binsize, run_key)
+        regressed_signals, unique_channels = regression_func(traces, binsize, run_key)
         all_regressed_signals[run_key] = regressed_signals
+
 
     # Temp data updating
     data.regressed_signals = all_regressed_signals
+    data.unique_channels = unique_channels
     if controller is not None:
         controller.update_data(data)
     return all_regressed_signals
@@ -132,7 +134,7 @@ def regression_func(traces, binsize, run_key):
             # Saves the output residuals into a dictionary
             region_residuals_ch0_regressed[f'{run_key}_{region}_{channel}'] = debinned_region_residuals
 
-    return region_residuals_ch0_regressed
+    return region_residuals_ch0_regressed, unique_channels
 
 
 def unique_list(iterable):

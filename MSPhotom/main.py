@@ -300,7 +300,7 @@ class MSPApp:
         Remove data object and create new. Update state accordingly.
         """
         # Update View
-        self.view.update_state('RG - Input Bin')
+        self.view.update_state('RG - Processing Done Ready to Input Bin')
 
         # Recreate Data
         self.data = MSPData()
@@ -334,7 +334,18 @@ class MSPApp:
                                               self),
                                         daemon=True)
         regress_thread.start()
+        run_options = self.data.traces_by_run_signal_trial.keys()
+        reg_options = self.data.roi_names
+    # def input_ch(self):
+    #
+    # def input_run(self):
+    #
+    # def input_reg(self):
+    #
+    # def input_trial(self):
 
+    def input_graph_params(self):
+        ch_selected = self.view.regression_tab.ch_select
 
 
     def set_state_based_on_data(self):

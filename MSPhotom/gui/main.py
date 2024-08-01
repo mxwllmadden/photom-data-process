@@ -57,17 +57,17 @@ class AppView:
                     self.image_tab.reset_button
                 ],
             'RG - Processing Done Ready to Input Bin' : [
-                    self.regression_tab.binsizeentry,
-                    self.regression_tab.load_button,
-                    self.regression_tab.reset_button
+                    self.regression_tab.binsizeentry, # Done
+                    self.regression_tab.load_button, # Done
+                    self.regression_tab.reset_button # Done
             ],
             'RG - Ready to Regress' : [
-                    self.regression_tab.regress_button,
-                    self.regression_tab.reset_button
+                    self.regression_tab.regress_button, # Done
+                    self.regression_tab.reset_button # Done
             ],
             'RG - Regression Done Ready to Graph' : [
-                    self.regression_tab.reset_button,
-                    self.regression_tab.reset_graph_button,
+                    self.regression_tab.reset_button,  # Done
+                    self.regression_tab.reset_graph_button,  # Done
                     self.regression_tab.input_graph_params,
                     self.regression_tab.run_selector,
                     self.regression_tab.reg_selector,
@@ -77,12 +77,12 @@ class AppView:
             'RG - Graph Selection' : [
                     self.regression_tab.graph_region_button,
                     self.regression_tab.graph_channel_button,
-                    self.regression_tab.reset_button,
-                    self.regression_tab.reset_graph_button
+                    self.regression_tab.reset_button,  # Done
+                    self.regression_tab.reset_graph_button  # Done
             ],
             'RG - Graphing Done' :[
-                    self.regression_tab.reset_button,
-                    self.regression_tab.reset_graph_button
+                    self.regression_tab.reset_button,  # Done
+                    self.regression_tab.reset_graph_button # Done
             ],
             
         }

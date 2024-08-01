@@ -49,7 +49,7 @@ class RegressionTab(tk.Frame):
         self.graph_region_button["state"] = "disabled"
         self.load_button["state"] = "disabled"
         self.input_graph_params["state"] = "disabled"
-        self.reset_button["state"] = "disabled"
+        # self.reset_button["state"] = "disabled"
         self.reset_graph_button["state"] = "disabled"
 
         # String Variables and Defaults
@@ -57,6 +57,8 @@ class RegressionTab(tk.Frame):
         self.splits1 = tk.StringVar()
         self.splits2 = tk.StringVar()
         #TODO change the three variables below to use the data provided in the drop down
+
+
         self.ch_select = tk.StringVar()
         self.run_select = tk.StringVar()
         self.reg_select = tk.StringVar()
