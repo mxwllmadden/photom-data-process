@@ -5,7 +5,7 @@ Regression related GUI elements
 import tkinter as tk
 from tkinter import ttk
 import matplotlib as plt
-
+from MSPhotom.data import MSPData
 
 """
 TODO: Make Run/Channel/Region be dropdowns not txt input.
@@ -31,7 +31,7 @@ class RegressionTab(tk.Frame):
         self.regress_button = tk.Button(buttoncanvas, text="REGRESS!!!")
         self.reset_button = tk.Button(buttoncanvas, text="RESET")
         self.graph_channel_button = tk.Button(graphbuttoncanvas, text="Corrsig Test Graph")
-        self.graph_region_button = tk.Button(graphbuttoncanvas, text="Ch0 Test Graph")
+        self.input_run_button = tk.Button(graphbuttoncanvas, text="Input Run")
         self.reset_graph_button = tk.Button(graphbuttoncanvas, text="Reset Graph")
         self.input_graph_params = tk.Button(graphbuttoncanvas, text="Input Params")
 
@@ -39,18 +39,18 @@ class RegressionTab(tk.Frame):
         self.regress_button.grid(column=0, row=2, padx=0, pady=(0, 10), sticky="se")
         self.reset_button.grid(column=0, row=3, padx=2, pady=(0, 10), sticky="se")
 
-        self.input_graph_params.grid(column=0, row=8, padx=0, pady=(0, 10), sticky="sw")
-        self.graph_channel_button.grid(column=0, row=9, padx=0, pady=(0, 10), sticky="sw")
-        self.graph_region_button.grid(column=0, row=10, padx=0, pady=(0, 10), sticky="sw")
+        self.input_run_button.grid(column=0, row=8, padx=0, pady=(0, 10), sticky="sw")
+        self.input_graph_params.grid(column=0, row=9, padx=0, pady=(0, 10), sticky="sw")
+        self.graph_channel_button.grid(column=0, row=10, padx=0, pady=(0, 10), sticky="sw")
         self.reset_graph_button.grid(column=0, row=11, padx=0, pady=(0, 10), sticky="sw")
 
-        self.regress_button["state"] = "disabled"
-        self.graph_channel_button["state"] = "disabled"
-        self.graph_region_button["state"] = "disabled"
-        self.load_button["state"] = "disabled"
-        self.input_graph_params["state"] = "disabled"
-        # self.reset_button["state"] = "disabled"
-        self.reset_graph_button["state"] = "disabled"
+        # self.regress_button["state"] = "disabled"
+        # self.graph_channel_button["state"] = "disabled"
+        # self.graph_region_button["state"] = "disabled"
+        # self.load_button["state"] = "disabled"
+        # self.input_graph_params["state"] = "disabled"
+        # # self.reset_button["state"] = "disabled"
+        # self.reset_graph_button["state"] = "disabled"
 
         # String Variables and Defaults
         self.bin_size = tk.StringVar()
@@ -59,9 +59,9 @@ class RegressionTab(tk.Frame):
         #TODO change the three variables below to use the data provided in the drop down
 
 
-        self.ch_select = tk.StringVar()
-        self.run_select = tk.StringVar()
-        self.reg_select = tk.StringVar()
+        self.ch_select = list['ch0', 'ch1', 'ch2']
+        self.run_select = MSPData.traces_by_run_signal_trial.keys()
+        self.reg_select = MSPData.roi_names
 
         self.trial_select = tk.StringVar()
         self.splits1.set("Not")

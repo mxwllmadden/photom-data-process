@@ -8,10 +8,12 @@ import pandas as pd
 class FakeData(MSPData):
     def __init__(self):
         super().__init__()
-        v_laser_fluct = self.sig_s(100, 4)
-        b_laser_fluct= self.sig_s(100, 5)
-        v_noise = self.randpeaks(100, 40)
-        true_sig = self.randpeaks(100, 20)
+        v_laser_fluct = self.sig_s(6000, 4)
+        b_laser_fluct= self.sig_s(6000, 5)
+        v_noise = self.randpeaks(6000, 400)
+        true_sig = self.randpeaks(6000, 200)
+        self.true_sig = true_sig
+        self.v_noise = v_noise
         self.traces_by_run_signal_trial = {
             'run1' : {
                 'sig_region1_ch0': (v_laser_fluct + v_noise),
@@ -48,12 +50,33 @@ def save_to_csv(data):
             df.to_csv(csv_filename, index=False)
             print(f"Saved {signal_name} to {csv_filename}")
 
+def save_vnoise_true(data : FakeData):
+    df1 = pd.DataFrame(data.v_noise)
+    df2 = pd.DataFrame(data.true_sig)
+
+    df1.to_csv("v_noise.csv", index=False)
+    df2.to_csv("true_sig.csv", index=False)
+    #
+    # def save_to_csv(data):
+    #     for run, signals in data.regressed_signals.items():
+    #         for signal_name, signal_data in signals.items():
+    #             # Convert numpy array to pandas DataFrame
+    #             df = pd.DataFrame(signal_data)
+    #             # Define the CSV filename
+    #             csv_filename = f"{run}_{signal_name}.csv"
+    #             # Save to CSV
+    #             df.to_csv(csv_filename, index=False)
+    #             print(f"Saved {signal_name} to {csv_filename}")
+
 binsize = 1
 if __name__ == '__main__':
     f_dat = FakeData()
     out_trace = reg.regression_main(f_dat)
 
     save_fake_data('f_dat.pkl', f_dat)
+
+    save_vnoise_true(f_dat)
+
     #
     # with open('output_trace.pkl', 'rb') as f:
     #     loaded_data = pickle.load(f)

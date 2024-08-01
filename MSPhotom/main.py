@@ -59,8 +59,13 @@ class MSPApp:
 
         self.view.regression_tab.regress_button.config(
             command=self.regress_fibers)
+        self.view.regression_tab.input_run_button.config(
+            command=self.input_run)
+        self.view.regression_tab.input_graph_params.config(
+            command=self.input_graph_params)
 
         self.refresh_data_view()
+        # self.view.update_state('RG - Processing Done Ready to Input Bin')
         self.view.mainloop()
 
     def get_image_directory(self):
@@ -241,7 +246,7 @@ class MSPApp:
         """
         # Update View
         # TODO Check with Max if this is correct or if it should be in an inbetween state
-        self.view.update_state('RG - Processing Done Ready to Input Bin')
+        self.view.update_state('IP - Processing Images')
         # Create and initialize the thread for image loading/processing
         pross_thread = threading.Thread(target=analysis.imageprocess.process_main,
                                         args=(self.data,
@@ -327,26 +332,41 @@ class MSPApp:
 
     def regress_fibers(self):
         # Update View
-        self.view.update_state('RG - Regression Done Ready to Graph')
+        # in between
+        self.view.update_state('RG - Regressing')
         # Create and initialize the thread for image loading/processing
         regress_thread = threading.Thread(target=analysis.regression.regression_main,
                                         args=(self.data,
                                               self),
                                         daemon=True)
         regress_thread.start()
-        run_options = self.data.traces_by_run_signal_trial.keys()
-        reg_options = self.data.roi_names
-    # def input_ch(self):
-    #
-    # def input_run(self):
-    #
-    # def input_reg(self):
-    #
-    # def input_trial(self):
+        # in function
+    def input_run(self):
+        run_selected = self.view.regression_tab.run_select
+        self.view.update_state('RG - Ready for Params')
+        self.data.graph_run_selected = run_selected.get()
+
+    def run_select_config(self):
+        run_select_config = self.data.traces_by_run_signal_trial.keys()
+
+    def reg_select_config(self):
+        reg_select_config = self.data.roi_names
+
+    def ch_select(self):
+        ch_select_config = list['ch0', 'ch1', 'ch2']
 
     def input_graph_params(self):
+        reg_selected = self.view.regression_tab.reg_select
         ch_selected = self.view.regression_tab.ch_select
-
+        inputted_trial =  self.view.regression_tab.trial_select
+        if not inputted_trial.get().isdigit():
+            inputted_trial.set('ERROR')
+            return
+        inputted_trial = int(inputted_trial.get())
+        self.data.graph_reg_selected = reg_selected
+        self.data.graph_ch_selected = ch_selected
+        self.data.graph_trial_selected = inputted_trial
+        self.view.update_state('RG - Graph Selection')
 
     def set_state_based_on_data(self):
         """
@@ -373,8 +393,9 @@ class MSPApp:
                                   'bin_size')
         regressiondone = multikey(self.data.__dict__,
                                   'regressed_traces_by_run_signal_trial')
+        runinputs = multikey(self.data.__dict__,
+                                'selected_run')
         graphinputs = multikey(self.data.__dict__,
-                                'selected_run',
                                'selected_channel',
                                'selected_region'
                                'selected_trial')
@@ -385,7 +406,10 @@ class MSPApp:
             self.view.update_state('RG - Graphing Done')
             return
         if not all(val is None for val in graphinputs):
-            self.view.update_state('RG - Graph Selection')
+            self.view.update_state('RG - Graph Selection' )
+            return
+        if not all(val is None for val in runinputs):
+            self.view.update_state('RG - Ready for Params')
             return
         if not all(val is None for val in regressiondone):
             self.view.update_state('RG - Regression Done Ready to Graph')
@@ -460,3 +484,4 @@ def numtodate(numcode: int):
 
 if __name__ == '__main__':
     MSPApp()
+

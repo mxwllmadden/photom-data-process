@@ -65,17 +65,25 @@ class AppView:
                     self.regression_tab.regress_button, # Done
                     self.regression_tab.reset_button # Done
             ],
+            'RG - Regressing' : [
+                self.regression_tab.reset_button,
+                self.regression_tab.reset_graph_button,
+            ],
             'RG - Regression Done Ready to Graph' : [
                     self.regression_tab.reset_button,  # Done
                     self.regression_tab.reset_graph_button,  # Done
-                    self.regression_tab.input_graph_params,
                     self.regression_tab.run_selector,
-                    self.regression_tab.reg_selector,
-                    self.regression_tab.ch_selector,
-                    self.regression_tab.trial_selector
+                    self.regression_tab.input_run_button
+            ],
+            'RG - Ready for Params': [
+                self.regression_tab.reset_button,  # Done
+                self.regression_tab.reset_graph_button,
+                self.regression_tab.input_graph_params,
+                self.regression_tab.reg_selector,
+                self.regression_tab.ch_selector,
+                self.regression_tab.trial_selector
             ],
             'RG - Graph Selection' : [
-                    self.regression_tab.graph_region_button,
                     self.regression_tab.graph_channel_button,
                     self.regression_tab.reset_button,  # Done
                     self.regression_tab.reset_graph_button  # Done

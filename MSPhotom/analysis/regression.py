@@ -6,7 +6,7 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 from MSPhotom.data import MSPData
-# from MSPhotom.analysis.regression_test2 import FakeData
+
 
 """
 TODO - 7/9/24 - MM
@@ -28,29 +28,46 @@ def regression_main(data: MSPData, controller=None):
         Dict: A dictionary containing dictionaries of regressed signals for each run.
     """
     # Initializes the main dictionary
-    all_regressed_signals = {}
+    regressed_traces_by_run_signal_trial = {}
+    graph_channels = {}
     # Extracts the data we need
     traces_by_run = data.traces_by_run_signal_trial
-    binsize = data.bin_size
+    # binsize = data.bin_size
+    binsize = 1
     # Iterate through each run in the nested dictionary
     for run_key, run_dict in traces_by_run.items():
         # print(f"Processing run: {run_key}")
         # Assign the nested dictionary (traces within each run) to `traces`
         traces = run_dict
-        # Does the regression and outputs regression dictionary
-        regressed_signals, unique_channels = regression_func(traces, binsize, run_key)
-        all_regressed_signals[run_key] = regressed_signals
 
+        region_names = [key.split('_')[1] for key in traces.keys()
+                        if key.split('_')[1] != 'corrsig']
+
+        channel_names = [key.split('_')[2] for key in traces.keys()]
+
+        channel_names_ch0_removed = [key.split('_')[2] for key in traces.keys()
+                                     if key.split('_')[2] != 'ch0']
+
+        # Removes duplicate channel and region names
+        unique_channels = unique_list(channel_names)
+        unique_regions = unique_list(region_names)
+        unique_channels_ch0_removed = unique_list(channel_names_ch0_removed)
+
+        # Does the regression and outputs regression dictionary
+        regressed_signals = regression_func(traces, binsize, run_key, unique_channels, unique_regions, unique_channels_ch0_removed)
+        regressed_traces_by_run_signal_trial[run_key] = regressed_signals
+        graph_channels[run_key] = unique_channels_ch0_removed
 
     # Temp data updating
-    data.regressed_signals = all_regressed_signals
-    data.unique_channels = unique_channels
+    data.regressed_traces_by_run_signal_trial = regressed_traces_by_run_signal_trial
+    data.graph_channels_by_run = graph_channels
     if controller is not None:
-        controller.update_data(data)
-    return all_regressed_signals
+        controller.view.update_state('RG - Regression Done Ready to Graph')
+        controller.view.regression_tab.runprog['value'] = 100
+    # return all_regressed_signals
 
 
-def regression_func(traces, binsize, run_key):
+def regression_func(traces, binsize, run_key, unique_channels, unique_regions, unique_channels_ch0_removed):
     """
     Perform regression analysis on traces to remove correction fibers and channel 0.
 
@@ -64,20 +81,6 @@ def regression_func(traces, binsize, run_key):
     dict
         Dictionary containing residuals for each region and channel combination.
     """
-
-    # Gathers all information needed to do regression
-    region_names = [key.split('_')[1] for key in traces.keys()
-                    if key.split('_')[1] != 'corrsig']
-
-    channel_names = [key.split('_')[2] for key in traces.keys()]
-
-    channel_names_ch0_removed = [key.split('_')[2] for key in traces.keys()
-                                 if key.split('_')[2] != 'ch0']
-
-    # Removes duplicate channel and region names
-    unique_channels = unique_list(channel_names)
-    unique_regions = unique_list(region_names)
-    unique_channels_ch0_removed = unique_list(channel_names_ch0_removed)
 
     # Initializes blank dictionaries to be filled by regression
     regions_correction_fiber_regressed_b = {}
@@ -134,7 +137,7 @@ def regression_func(traces, binsize, run_key):
             # Saves the output residuals into a dictionary
             region_residuals_ch0_regressed[f'{run_key}_{region}_{channel}'] = debinned_region_residuals
 
-    return region_residuals_ch0_regressed, unique_channels
+    return region_residuals_ch0_regressed
 
 
 def unique_list(iterable):
@@ -335,10 +338,11 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
         [net_res_reshaped, net_res_reshaped_r], axis=1)
     return net_res_debinned
 
+
 if __name__ == "__main__":
     with open('f_dat.pkl', 'rb') as f:
         loaded_data = pickle.load(f)
     print(loaded_data.traces_by_run_signal_trial.keys())
 
-    all_regressed_signals = regression_main(loaded_data)
-    print(all_regressed_signals)
+    regression_main(loaded_data)
+    # save_to_csv(loaded_data)

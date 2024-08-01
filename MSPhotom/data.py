@@ -40,6 +40,11 @@ class MSPData:
 
     bin_size: int = None
     regressed_traces_by_run_signal_trial: Dict[str, Dict[str,np.ndarray]] = None
+    graph_channels_by_run: Dict[str, List[str]] = None
+
+
+
+
 
 class DataManager:
     def __init__(self, data):
