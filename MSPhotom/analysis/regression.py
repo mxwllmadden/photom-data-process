@@ -6,7 +6,6 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 from MSPhotom.data import MSPData
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
 """
@@ -37,7 +36,6 @@ def regression_main(data: MSPData, controller=None):
     num_runs = len(traces_by_run)
     # Iterate through each run in the nested dictionary
     for run_key, run_dict in traces_by_run.items():
-        print(f"Processing run: {run_key}")
         # Assign the nested dictionary (traces within each run) to `traces`
         traces = run_dict
         region_names = [key.split('_')[1] for key in traces.keys()
@@ -50,9 +48,7 @@ def regression_main(data: MSPData, controller=None):
 
         # Removes duplicate channel and region names
         unique_channels = unique_list(channel_names)
-        print(unique_channels)
         unique_regions = unique_list(region_names)
-        print(unique_regions)
         unique_channels_ch0_removed = unique_list(channel_names_ch0_removed)
 
         # Does the regression and outputs regression dictionary

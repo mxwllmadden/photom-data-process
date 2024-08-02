@@ -67,7 +67,7 @@ class MSPApp:
         self.view.regression_tab.graph_channel_button.config(
             command=self.update_canvas_with_plot)
         self.refresh_data_view()
-        # self.view.update_state('RG - Processing Done Ready to Input Bin')
+        self.view.update_state('IP - Parameter Entry')
         self.view.mainloop()
 
     def get_image_directory(self):
@@ -445,8 +445,7 @@ class MSPApp:
             'num_interpolated_channels', 'roi_names', 'num_regions', 'num_runs', 'animal_names', 'run_path_list',
             'fiber_labels', 'fiber_coords', 'fiber_masks', 'traces_raw_by_run_reg',
             'traces_by_run_signal_trial', 'bin_size', 'regressed_traces_by_run_signal_trial',
-            'graph_of_choice', 'graph_run_selected', 'graph_ch_selected', 'graph_reg_selected',
-            'graph_trial_selected'
+            'graph_run_selected', 'graph_ch_selected', 'graph_reg_selected','graph_trial_selected'
         ]
         for attr in required_attributes:
             if attr not in self.data.__dict__:
@@ -479,12 +478,7 @@ class MSPApp:
                                'graph_ch_selected',
                                'graph_reg_selected',
                                'graph_trial_selected')
-        chosengraph = multikey(self.data.__dict__,
-                                'graph_of_choice')
 
-        if not all(val is None for val in chosengraph):
-            self.view.update_state('RG - Graphing Done')
-            return
         if not all(val is None for val in graphinputs):
             self.view.update_state('RG - Graph Selection' )
             return
