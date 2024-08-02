@@ -6,7 +6,8 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 from MSPhotom.data import MSPData
-
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 
 """
 TODO - 7/9/24 - MM
@@ -32,14 +33,13 @@ def regression_main(data: MSPData, controller=None):
     graph_channels = {}
     # Extracts the data we need
     traces_by_run = data.traces_by_run_signal_trial
-    # binsize = data.bin_size
-    binsize = 1
+    binsize = data.bin_size
+    num_runs = len(traces_by_run)
     # Iterate through each run in the nested dictionary
     for run_key, run_dict in traces_by_run.items():
-        # print(f"Processing run: {run_key}")
+        print(f"Processing run: {run_key}")
         # Assign the nested dictionary (traces within each run) to `traces`
         traces = run_dict
-
         region_names = [key.split('_')[1] for key in traces.keys()
                         if key.split('_')[1] != 'corrsig']
 
@@ -50,24 +50,24 @@ def regression_main(data: MSPData, controller=None):
 
         # Removes duplicate channel and region names
         unique_channels = unique_list(channel_names)
+        print(unique_channels)
         unique_regions = unique_list(region_names)
+        print(unique_regions)
         unique_channels_ch0_removed = unique_list(channel_names_ch0_removed)
 
         # Does the regression and outputs regression dictionary
-        regressed_signals = regression_func(traces, binsize, run_key, unique_channels, unique_regions, unique_channels_ch0_removed)
+        regressed_signals = regression_func(traces, binsize, unique_channels, unique_regions, unique_channels_ch0_removed)
         regressed_traces_by_run_signal_trial[run_key] = regressed_signals
-        graph_channels[run_key] = unique_channels_ch0_removed
 
     # Temp data updating
     data.regressed_traces_by_run_signal_trial = regressed_traces_by_run_signal_trial
-    data.graph_channels_by_run = graph_channels
     if controller is not None:
         controller.view.update_state('RG - Regression Done Ready to Graph')
         controller.view.regression_tab.runprog['value'] = 100
     # return all_regressed_signals
 
 
-def regression_func(traces, binsize, run_key, unique_channels, unique_regions, unique_channels_ch0_removed):
+def regression_func(traces, binsize, unique_channels, unique_regions, unique_channels_ch0_removed):
     """
     Perform regression analysis on traces to remove correction fibers and channel 0.
 
@@ -135,7 +135,7 @@ def regression_func(traces, binsize, run_key, unique_channels, unique_regions, u
             debinned_region_residuals = debin_me(res_studentized_b, res_studentized_b_r, binsize)
 
             # Saves the output residuals into a dictionary
-            region_residuals_ch0_regressed[f'{run_key}_{region}_{channel}'] = debinned_region_residuals
+            region_residuals_ch0_regressed[f'{region}_{channel}'] = debinned_region_residuals
 
     return region_residuals_ch0_regressed
 
@@ -339,10 +339,40 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
     return net_res_debinned
 
 
-if __name__ == "__main__":
-    with open('f_dat.pkl', 'rb') as f:
-        loaded_data = pickle.load(f)
-    print(loaded_data.traces_by_run_signal_trial.keys())
+def corrsig_test_graph(data: MSPData, controller=None):
+    graph_run = data.graph_run_selected
+    graph_reg = data.graph_reg_selected
+    graph_ch = data.graph_ch_selected
+    graph_trial = data.graph_trial_selected
+    trace_key = f'sig_{graph_reg}_{graph_ch}'
+    corrsig_key = f'sig_corrsig_{graph_ch}'
 
+    trace_data = data.traces_by_run_signal_trial[graph_run][trace_key]
+    corrsig_data = data.traces_by_run_signal_trial[graph_run][corrsig_key]
+    trial_data_y = trace_data[graph_trial+1, :]
+    trial_data_x = corrsig_data[graph_trial+1, :]
+
+    # plt.scatter(trial_data_x, trial_data_y, label='Data Points')
+    plt.style.use('fivethirtyeight')
+    fig = Figure(figsize=(7, 5))
+    ax = fig.add_subplot(111)
+    ax.scatter(trial_data_x, trial_data_y)
+
+    # Add labels and legend
+    ax.set_xlabel('Corrsig Values', fontsize=8)
+    # ax.set_ylabel(f'{graph_reg} Trace Values', fontsize=8)
+    ax.set_title(f'{graph_reg} Against Corr-Fiber For {graph_ch}(Trial: {graph_trial})', fontsize=8)
+    ax.tick_params(axis='both', which='major', labelsize=6)
+    ax.tick_params(axis='both', which='minor', labelsize=4)
+
+
+    return fig
+
+if __name__ == "__main__":
+    with open('exampledata2.pkl', 'rb') as f:
+        loaded_data = pickle.load(f)
+    # print(loaded_data.traces_by_run_signal_trial.keys())
+
+    # corrsig_test_graph(loaded_data)
     regression_main(loaded_data)
     # save_to_csv(loaded_data)

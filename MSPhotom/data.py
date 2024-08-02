@@ -24,7 +24,8 @@ class MSPData:
     img_per_trial_per_channel: int = None
     num_interpolated_channels: int = None
     roi_names: List[str] = None
-
+    num_regions: int = None
+    num_runs: int = None
     # File/Trace/Animal Information
     animal_names: List[str] = None
     run_path_list: List[str] = None
@@ -40,7 +41,12 @@ class MSPData:
 
     bin_size: int = None
     regressed_traces_by_run_signal_trial: Dict[str, Dict[str,np.ndarray]] = None
-    graph_channels_by_run: Dict[str, List[str]] = None
+
+
+    graph_run_selected: str = None
+    graph_reg_selected: str = None
+    graph_ch_selected: str = None
+    graph_trial_selected: int = None
 
 
 

@@ -11,7 +11,8 @@ import os
 from PIL import Image, ImageTk
 import threading
 from typing import List, Tuple
-
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import tkinter as tkk
 from MSPhotom.data import MSPData, DataManager
 from MSPhotom.gui.main import AppView
 from MSPhotom import analysis
@@ -63,7 +64,8 @@ class MSPApp:
             command=self.input_run)
         self.view.regression_tab.input_graph_params.config(
             command=self.input_graph_params)
-
+        self.view.regression_tab.graph_channel_button.config(
+            command=self.update_canvas_with_plot)
         self.refresh_data_view()
         # self.view.update_state('RG - Processing Done Ready to Input Bin')
         self.view.mainloop()
@@ -158,6 +160,7 @@ class MSPApp:
         self.data.img_per_trial_per_channel: int = img_per_trial_per_channel
         self.data.num_interpolated_channels: int = num_interpolated_channels
         self.data.roi_names: List[str] = roi_names
+
 
     def region_selection(self):
         """
@@ -298,6 +301,9 @@ class MSPApp:
             manage = DataManager(self.data)
             self.data = manage.load(file)
         self.set_state_based_on_data()
+        # This logic is here to clear the graph plot is a new pickle file is loaded
+        for widget in self.view.regression_tab.graphcanvas.winfo_children():
+            widget.destroy()
 
 
     def reset_regression(self):
@@ -305,20 +311,43 @@ class MSPApp:
         Remove data object and create new. Update state accordingly.
         """
         # Update View
+        regression_attributes = [
+            'bin_size','regressed_traces_by_run_signal_trial','graph_of_choice',
+            'graph_run_selected', 'graph_ch_selected', 'graph_reg_selected',
+            'graph_trial_selected'
+        ]
+
+        for attr in regression_attributes:
+            if hasattr(self.data, attr):
+                setattr(self.data, attr, None)
+        for widget in self.view.regression_tab.graphcanvas.winfo_children():
+            widget.destroy()
+        self.view.regression_tab.runprog['value'] = 0
+        print("Graph canvas cleared")
         self.view.update_state('RG - Processing Done Ready to Input Bin')
 
-        # Recreate Data
-        self.data = MSPData()
+
 
     def reset_graph(self):
         """
         Remove data object and create new. Update state accordingly.
         """
+        regression_attributes = [
+            'graph_of_choice', 'graph_run_selected', 'graph_ch_selected',
+            'graph_reg_selected', 'graph_trial_selected'
+        ]
+
+        for attr in regression_attributes:
+            if hasattr(self.data, attr):
+                setattr(self.data, attr, None)
+
+        # Clear the graphcanvas
+        for widget in self.view.regression_tab.graphcanvas.winfo_children():
+            widget.destroy()
+        print("Graph canvas cleared")
+
         # Update View
         self.view.update_state('RG - Regression Done Ready to Graph')
-
-        # Recreate Data
-        self.data = MSPData()
 
     def input_bin(self):
         bin_size = self.view.regression_tab.bin_size
@@ -326,7 +355,8 @@ class MSPApp:
             bin_size.set('ERROR')
             return
         bin_size = int(bin_size.get())
-
+        self.view.regression_tab.num_regs = self.data.num_regions
+        self.view.regression_tab.num_runs = self.data.num_runs
         self.view.update_state('RG - Ready to Regress')
         self.data.bin_size: int = bin_size
 
@@ -340,38 +370,88 @@ class MSPApp:
                                               self),
                                         daemon=True)
         regress_thread.start()
+        run_options = list(self.data.traces_by_run_signal_trial.keys())
+        self.view.regression_tab.run_selector['values'] = run_options
+        # Set default value
+        if run_options:
+            self.view.regression_tab.run_selector.set(run_options[0])
+        else:
+            self.view.regression_tab.run_selector.set("")
         # in function
     def input_run(self):
         run_selected = self.view.regression_tab.run_select
+        try:
+            reg_options = list(self.data.roi_names)
+        except TypeError:
+            reg_options = ""
+        ch_options = ('ch0', 'ch1', 'ch2')
+
+        self.view.regression_tab.reg_selector['values'] = reg_options
+        self.view.regression_tab.ch_selector['values'] = ch_options
+        self.view.regression_tab.ch_selector.set(ch_options[0])
+        # Set default value
+        if reg_options:
+            self.view.regression_tab.reg_selector.set(reg_options[0])
+        else:
+            self.view.regression_tab.reg_selector.set("")
         self.view.update_state('RG - Ready for Params')
         self.data.graph_run_selected = run_selected.get()
-
-    def run_select_config(self):
-        run_select_config = self.data.traces_by_run_signal_trial.keys()
-
-    def reg_select_config(self):
-        reg_select_config = self.data.roi_names
-
-    def ch_select(self):
-        ch_select_config = list['ch0', 'ch1', 'ch2']
 
     def input_graph_params(self):
         reg_selected = self.view.regression_tab.reg_select
         ch_selected = self.view.regression_tab.ch_select
-        inputted_trial =  self.view.regression_tab.trial_select
+        inputted_trial = self.view.regression_tab.trial_select
         if not inputted_trial.get().isdigit():
             inputted_trial.set('ERROR')
-            return
         inputted_trial = int(inputted_trial.get())
-        self.data.graph_reg_selected = reg_selected
-        self.data.graph_ch_selected = ch_selected
-        self.data.graph_trial_selected = inputted_trial
         self.view.update_state('RG - Graph Selection')
+        self.data.graph_reg_selected = reg_selected.get()
+        self.data.graph_ch_selected = ch_selected.get()
+        self.data.graph_trial_selected = inputted_trial
+
+    def update_canvas_with_plot(self):
+        # Get the Figure object from the plot function
+        fig = analysis.regression.corrsig_test_graph(self.data)
+
+        # Set the figure size to fit the canvas
+        fig.set_size_inches(self.view.regression_tab.graphcanvas.winfo_width() / fig.get_dpi(),
+                            self.view.regression_tab.graphcanvas.winfo_height() / fig.get_dpi())
+
+        # Create a FigureCanvasTkAgg object from the Figure with the graphcanvas as master
+        fig.subplots_adjust(left=0.075, right=.95, top=.945, bottom=0.11, wspace=0.4, hspace=0.4)
+        canvas = FigureCanvasTkAgg(fig, master=self.view.regression_tab.graphcanvas)
+        canvas.draw()  # Draw the plot
+
+        # Clear any existing widgets in the graphcanvas
+        self.view.regression_tab.graphcanvas.delete("all")
+
+        # Get the Tkinter widget from the FigureCanvasTkAgg object
+        canvas_widget = canvas.get_tk_widget()
+
+        # Pack the widget into the graphcanvas
+        canvas_widget.pack(fill=tkk.BOTH, expand=True)
+
+        # Ensure the graphcanvas is set to the correct size
+        self.view.regression_tab.graphcanvas.config(width=330, height=330)
+        self.view.update_state('RG - Graphing Done')
 
     def set_state_based_on_data(self):
         """
         Based on the stored data in data object, update view.
         """
+        # This logic here is to prevent old data without all the required attributes from loading.
+        required_attributes = [
+            'target_directory', 'img_date_range', 'img_prefix', 'img_per_trial_per_channel',
+            'num_interpolated_channels', 'roi_names', 'num_regions', 'num_runs', 'animal_names', 'run_path_list',
+            'fiber_labels', 'fiber_coords', 'fiber_masks', 'traces_raw_by_run_reg',
+            'traces_by_run_signal_trial', 'bin_size', 'regressed_traces_by_run_signal_trial',
+            'graph_of_choice', 'graph_run_selected', 'graph_ch_selected', 'graph_reg_selected',
+            'graph_trial_selected'
+        ]
+        for attr in required_attributes:
+            if attr not in self.data.__dict__:
+                setattr(self.data, attr, None)
+
         humaninputs = multikey(self.data.__dict__,
                                'target_directory',
                                'img_date_range',
@@ -394,13 +474,13 @@ class MSPApp:
         regressiondone = multikey(self.data.__dict__,
                                   'regressed_traces_by_run_signal_trial')
         runinputs = multikey(self.data.__dict__,
-                                'selected_run')
+                                'graph_run_selected')
         graphinputs = multikey(self.data.__dict__,
-                               'selected_channel',
-                               'selected_region'
-                               'selected_trial')
+                               'graph_ch_selected',
+                               'graph_reg_selected',
+                               'graph_trial_selected')
         chosengraph = multikey(self.data.__dict__,
-                                "graph_of_choice")
+                                'graph_of_choice')
 
         if not all(val is None for val in chosengraph):
             self.view.update_state('RG - Graphing Done')

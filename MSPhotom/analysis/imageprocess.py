@@ -59,6 +59,8 @@ def process_main(data,
                         in zip(data.fiber_labels, fiber_masks)}
     data.traces_raw_by_run_reg = traces_raw_by_run_reg
     data.traces_by_run_signal_trial = traces_by_run_signal_trial
+    data.num_runs = len(traces_by_run_signal_trial)
+
     if controller is not None:
         controller.view.update_state('RG - Processing Done Ready to Input Bin')
         controller.view.image_tab.longprog['value'] = 100
