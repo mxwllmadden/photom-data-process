@@ -54,7 +54,7 @@ def process_main(data,
         
         traces_by_run_signal_trial[run_path] = {label : trace for label, trace 
                                            in zip(trace_labels, traces)}
-        
+
     data.fiber_masks = {label : mask for label, mask 
                         in zip(data.fiber_labels, fiber_masks)}
     data.traces_raw_by_run_reg = traces_raw_by_run_reg
@@ -67,8 +67,6 @@ def process_main(data,
         controller.view.image_tab.runprog['value'] = 100
         controller.view.image_tab.shortprogstat.set('All Images Processed')
         controller.view.image_tab.longprogstat.set('All Runs Processed')
-        
-    
 
 def process_run(valid_imgs, masks, controller = None):
     start_time = time.time()
@@ -94,7 +92,6 @@ def process_run(valid_imgs, masks, controller = None):
             controller.view.image_tab.shortprogstat.set(f'{img_nm.split("/")[-1]}')
             controller.view.image_tab.speedout.set(f'{round(ind/(time.time()-start_time),1)} images/second')
     return traces_raw
-        
 
 def get_valid_images(path, prefix):
     img_paths = os.listdir(path)

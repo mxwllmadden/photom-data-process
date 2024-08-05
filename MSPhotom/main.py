@@ -50,7 +50,6 @@ class MSPApp:
         self.view.data_tab.load_data_but.config(
             command=self.load_data)
 
-
         self.view.regression_tab.reset_button.config(
             command=self.reset_regression)
         self.view.regression_tab.reset_graph_button.config(
@@ -248,7 +247,6 @@ class MSPApp:
         Update view and start image processing in another thread
         """
         # Update View
-        # TODO Check with Max if this is correct or if it should be in an inbetween state
         self.view.update_state('IP - Processing Images')
         # Create and initialize the thread for image loading/processing
         pross_thread = threading.Thread(target=analysis.imageprocess.process_main,
@@ -299,7 +297,7 @@ class MSPApp:
                                           title='Load Data')
         if file is not None:
             manage = DataManager(self.data)
-            self.data = manage.load(file)
+            self.data = MSPData(**manage.load(file).__dict__)
         self.set_state_based_on_data()
         # This logic is here to clear the graph plot is a new pickle file is loaded
         for widget in self.view.regression_tab.graphcanvas.winfo_children():
@@ -439,18 +437,6 @@ class MSPApp:
         """
         Based on the stored data in data object, update view.
         """
-        # This logic here is to prevent old data without all the required attributes from loading.
-        required_attributes = [
-            'target_directory', 'img_date_range', 'img_prefix', 'img_per_trial_per_channel',
-            'num_interpolated_channels', 'roi_names', 'num_regions', 'num_runs', 'animal_names', 'run_path_list',
-            'fiber_labels', 'fiber_coords', 'fiber_masks', 'traces_raw_by_run_reg',
-            'traces_by_run_signal_trial', 'bin_size', 'regressed_traces_by_run_signal_trial',
-            'graph_run_selected', 'graph_ch_selected', 'graph_reg_selected','graph_trial_selected'
-        ]
-        for attr in required_attributes:
-            if attr not in self.data.__dict__:
-                setattr(self.data, attr, None)
-
         humaninputs = multikey(self.data.__dict__,
                                'target_directory',
                                'img_date_range',
