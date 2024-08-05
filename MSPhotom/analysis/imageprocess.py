@@ -65,6 +65,9 @@ def process_main(data,
         controller.view.image_tab.runprog['value'] = 100
         controller.view.image_tab.shortprogstat.set('All Images Processed')
         controller.view.image_tab.longprogstat.set('All Runs Processed')
+        from MSPhotom.data import DataManager
+        manage = DataManager(data)
+        manage.save('autosave_data.pkl')
         
     
 

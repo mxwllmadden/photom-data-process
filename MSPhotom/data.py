@@ -27,6 +27,7 @@ class MSPData:
 
     # File/Trace/Animal Information
     animal_names: List[str] = None
+    animal_basename: str = None
     run_path_list: List[str] = None
 
     # Image Processing and Aquisition - Section 2, Fiber Masking

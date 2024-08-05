@@ -138,6 +138,7 @@ class MSPApp:
         self.data.img_date_range: Tuple[str, str] = (date_start.get(),
                                                      date_end.get())
         self.data.animal_names: List[str] = animal_names
+        self.data.animal_basename: str = ani_prefix
         self.data.run_path_list: List[str] = run_paths
         self.data.img_prefix: str = img_prefix
         self.data.img_per_trial_per_channel: int = img_per_trial_per_channel
@@ -176,14 +177,18 @@ class MSPApp:
         frpath = self.data.run_path_list[0]
         imprefix = self.data.img_prefix
         impath = f'{frpath}/{imprefix}_2.tif'
+        impath2 = f'{frpath}/{imprefix}_1.tif'
+        cmap = pp.get_cmap('nipy_spectral')
         with Image.open(impath) as im:
-            cmap = pp.get_cmap('nipy_spectral')
             np_im = np.asarray(im)
-            np_im = np_im - np_im.min()
-            np_im = np_im / np_im.max()
-            im_array : np.ndarray = np.asarray(cmap(im))*255
-            im_array : np.ndarray = im_array.astype(np.uint8)[:,:,:3]
-            return ImageTk.PhotoImage(Image.fromarray(im_array, mode='RGB'))
+        with Image.open(impath2) as im2:
+            np_im2 = np.asarray(im2)
+        np_im = np_im2 / np_im
+        np_im = np_im - np_im.min()
+        np_im = np_im / np_im.max()
+        im_array : np.ndarray = np.asarray(cmap(np_im))*255
+        im_array : np.ndarray = im_array.astype(np.uint8)[:,:,:3]
+        return ImageTk.PhotoImage(Image.fromarray(im_array, mode='RGB'))
 
     def region_selection_prematureclose(self, event):
         """
@@ -287,8 +292,36 @@ class MSPApp:
         if file is not None:
             manage = DataManager(self.data)
             self.data = manage.load(file)
+        self.unpack_params_from_data()
         self.set_state_based_on_data()
-
+        
+    def unpack_params_from_data(self):
+        loaded_data = self.data.__dict__
+        loaded_data['animal_start'] = 0
+        loaded_data['animal_end'] = 100
+        if 'img_date_range' in loaded_data.keys():
+            loaded_data['date_start'] = loaded_data['img_date_range'][0]
+            loaded_data['date_end'] = loaded_data['img_date_range'][1]
+        corresponding_params = {'target_directory' : self.view.image_tab.topdirectory,
+                                'date_start' : self.view.image_tab.date_start,
+                                'date_end':self.view.image_tab.date_end,
+                                'animal_prefix' : self.view.image_tab.ani_prefix,
+                                'animal_start' : self.view.image_tab.ani_start,
+                                'animal_end' : self.view.image_tab.ani_end,
+                                'img_prefix' : self.view.image_param_tab.img_prefix,
+                                'img_per_trial_per_channel' : self.view.image_param_tab.img_per_trial_per_channel,
+                                'num_interpolated_channels' : self.view.image_param_tab.num_interpolated_channels,
+                                }
+        for key, param in corresponding_params.items():
+            if key in loaded_data.keys():
+                param.set(loaded_data[key])
+                continue
+            param.set('')
+        
+        if 'roi_names' in loaded_data.keys():
+            for roi, strvar in zip(loaded_data['roi_names'], self.view.image_param_tab.roi_names):
+                strvar.set(roi)
+        
     def set_state_based_on_data(self):
         """
         Based on the stored data in data object, update view.
