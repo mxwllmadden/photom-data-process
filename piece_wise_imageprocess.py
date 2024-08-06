@@ -24,6 +24,7 @@ def main():
     print('Please load the pckl data file you would like to update')
     data = waitfor(reporter,'Data')
     old_runs = copy.deepcopy(data.run_path_list)
+    old_data = copy.deepcopy(data)
     
     print('Loading Runs')
     data.run_path_list = None
@@ -38,6 +39,24 @@ def main():
                 all([old_run not in run for old_run in runs_already_analysed])]
     print(f'Identified {len(new_runs)} new runs:')
     for run in new_runs: print(run)
+    
+    input('\nPress Enter to Begin Processing New Runs...')
+    
+    data.run_path_list = new_runs
+    data.traces_by_run_signal_trial = None
+    app.processimages()
+    
+    while True:
+        time.sleep(5)
+        if data.traces_by_run_signal_trial is not None:
+            break
+    data.run_path_list = [*data.run_path_list, *old_runs]
+    data.traces_raw_by_run_reg = {**old_data.traces_raw_by_run_reg,
+                                      **data.traces_raw_by_run_reg}
+    data.traces_by_run_signal_trial = {**old_data.traces_by_run_signal_trial,
+                                      **data.traces_by_run_signal_trial}
+    
+    print('Processing has finished. Please manually save in a new location')
     
 class MSPhotom_Automated(msp.MSPApp):
     def __init__(self, reporter : list):

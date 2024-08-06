@@ -7,6 +7,7 @@ import os
 import numpy as np
 from PIL import Image
 import time
+import re
 
 def process_main(data,
                  controller=None):
@@ -27,7 +28,7 @@ def process_main(data,
         # Update view if needed
         if controller is not None:
             controller.view.image_tab.longprog['value'] = (ind/run_path_list_len)*100
-            controller.view.image_tab.longprogstat.set(f'Processing run {run_path.split("/")[-1]}')
+            controller.view.image_tab.longprogstat.set(f'Processing run {run_path.split("/")[-2]}/{run_path.split("/")[-1]}')
     
         valid_imgs = get_valid_images(run_path, data.img_prefix)
         if len(valid_imgs) == 0:
@@ -102,7 +103,7 @@ def get_valid_images(path, prefix):
     img_paths = [path for path in img_paths if path[-4:] == '.tif']
     prefix_len = len(prefix)
     img_paths = [path for path in img_paths if path[:prefix_len] == prefix]
-    img_paths = sorted(img_paths, key = lambda imgnm : int(imgnm[prefix_len+1:-4]))
+    img_paths = sorted(img_paths, key = lambda imgnm : int(re.sub('[^0-9]','',imgnm[prefix_len+1:-4])))
     return [f'{path}/{name}' for name in img_paths]
 
 def npy_circlemask(sizex : int, sizey : int,circlex : int,circley : int,radius : int):
