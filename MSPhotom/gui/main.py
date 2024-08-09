@@ -85,6 +85,7 @@ class AppView:
             ],
             'RG - Graph Selection' : [
                     self.regression_tab.graph_channel_button,
+                    self.regression_tab.graph_corrsig_button,
                     self.regression_tab.reset_button,  # Done
                     self.regression_tab.reset_graph_button  # Done
             ],

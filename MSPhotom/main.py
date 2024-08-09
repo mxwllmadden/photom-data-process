@@ -16,6 +16,8 @@ import tkinter as tkk
 from MSPhotom.data import MSPData, DataManager
 from MSPhotom.gui.main import AppView
 from MSPhotom import analysis
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 
 
 class MSPApp:
@@ -64,8 +66,11 @@ class MSPApp:
             command=self.input_run)
         self.view.regression_tab.input_graph_params.config(
             command=self.input_graph_params)
+        self.view.regression_tab.graph_corrsig_button.config(
+            command=self.update_canvas_with_plot_corrsig)
         self.view.regression_tab.graph_channel_button.config(
-            command=self.update_canvas_with_plot)
+            command=self.update_canvas_with_plot_channel
+        )
         self.refresh_data_view()
         self.view.update_state('IP - Parameter Entry')
         self.view.mainloop()
@@ -380,22 +385,34 @@ class MSPApp:
         # in function
     def input_run(self):
         run_selected = self.view.regression_tab.run_select
+        run_selected_value = run_selected.get()  # Get the actual string value from StringVar
+
         try:
             reg_options = list(self.data.roi_names)
         except TypeError:
             reg_options = ""
-        ch_options = ('ch0', 'ch1', 'ch2')
+
+        try:
+            ch_options = list(self.data.ch_names_by_run[run_selected_value])
+        except KeyError:
+            ch_options = []  # Handle the case where the run_selected_value is not found
 
         self.view.regression_tab.reg_selector['values'] = reg_options
         self.view.regression_tab.ch_selector['values'] = ch_options
-        self.view.regression_tab.ch_selector.set(ch_options[0])
+
         # Set default value
+        if ch_options:
+            self.view.regression_tab.ch_selector.set(ch_options[0])
+        else:
+            self.view.regression_tab.ch_selector.set("")
+
         if reg_options:
             self.view.regression_tab.reg_selector.set(reg_options[0])
         else:
             self.view.regression_tab.reg_selector.set("")
+
         self.view.update_state('RG - Ready for Params')
-        self.data.graph_run_selected = run_selected.get()
+        self.data.graph_run_selected = run_selected_value
 
     def input_graph_params(self):
         reg_selected = self.view.regression_tab.reg_select
@@ -409,16 +426,16 @@ class MSPApp:
         self.data.graph_ch_selected = ch_selected.get()
         self.data.graph_trial_selected = inputted_trial
 
-    def update_canvas_with_plot(self):
+    def update_canvas_with_plot_corrsig(self):
         # Get the Figure object from the plot function
-        fig = analysis.regression.corrsig_test_graph(self.data)
+        fig = self.corrsig_test_graph()
 
         # Set the figure size to fit the canvas
         fig.set_size_inches(self.view.regression_tab.graphcanvas.winfo_width() / fig.get_dpi(),
                             self.view.regression_tab.graphcanvas.winfo_height() / fig.get_dpi())
 
         # Create a FigureCanvasTkAgg object from the Figure with the graphcanvas as master
-        fig.subplots_adjust(left=0.075, right=.95, top=.945, bottom=0.11, wspace=0.4, hspace=0.4)
+        fig.subplots_adjust(left=0.12, right=.95, top=.945, bottom=0.11, wspace=0.4, hspace=0.4)
         canvas = FigureCanvasTkAgg(fig, master=self.view.regression_tab.graphcanvas)
         canvas.draw()  # Draw the plot
 
@@ -434,6 +451,87 @@ class MSPApp:
         # Ensure the graphcanvas is set to the correct size
         self.view.regression_tab.graphcanvas.config(width=330, height=330)
         self.view.update_state('RG - Graphing Done')
+
+    def update_canvas_with_plot_channel(self):
+        # Get the Figure object from the plot function
+        fig = self.channel_test_graph()
+
+        # Set the figure size to fit the canvas
+        fig.set_size_inches(self.view.regression_tab.graphcanvas.winfo_width() / fig.get_dpi(),
+                            self.view.regression_tab.graphcanvas.winfo_height() / fig.get_dpi())
+
+        # Create a FigureCanvasTkAgg object from the Figure with the graphcanvas as master
+        fig.subplots_adjust(left=0.12, right=.95, top=.945, bottom=0.11, wspace=0.4, hspace=0.4)
+        canvas = FigureCanvasTkAgg(fig, master=self.view.regression_tab.graphcanvas)
+        canvas.draw()  # Draw the plot
+
+        # Clear any existing widgets in the graphcanvas
+        self.view.regression_tab.graphcanvas.delete("all")
+
+        # Get the Tkinter widget from the FigureCanvasTkAgg object
+        canvas_widget = canvas.get_tk_widget()
+
+        # Pack the widget into the graphcanvas
+        canvas_widget.pack(fill=tkk.BOTH, expand=True)
+
+        # Ensure the graphcanvas is set to the correct size
+        self.view.regression_tab.graphcanvas.config(width=330, height=330)
+        self.view.update_state('RG - Graphing Done')
+
+    def corrsig_test_graph(self):
+        graph_run = self.data.graph_run_selected
+        graph_reg = self.data.graph_reg_selected
+        graph_ch = self.data.graph_ch_selected
+        graph_trial = self.data.graph_trial_selected
+
+        trace_key = f'sig_{graph_reg}_{graph_ch}'
+        corrsig_key = f'sig_corrsig_{graph_ch}'
+
+        trace_data = self.data.traces_by_run_signal_trial[graph_run][trace_key]
+        corrsig_data = self.data.traces_by_run_signal_trial[graph_run][corrsig_key]
+        trial_data_y = trace_data[graph_trial - 1, :]
+        trial_data_x = corrsig_data[graph_trial - 1, :]
+
+        plt.style.use('fivethirtyeight')
+        fig = Figure(figsize=(7, 5))
+        ax = fig.add_subplot(111)
+        ax.scatter(trial_data_x, trial_data_y)
+
+        ax.set_xlabel('Corrsig-Fiber Values', fontsize=8)
+        ax.set_ylabel(f'{graph_reg}-Fiber Trace Values', fontsize=8)
+        ax.set_title(f'{graph_reg}-Fiber Against Corr-Fiber in {graph_ch}(Trial: {graph_trial})', fontsize=8)
+        ax.tick_params(axis='both', which='major', labelsize=6)
+        ax.tick_params(axis='both', which='minor', labelsize=4)
+
+        return fig
+
+    def channel_test_graph(self):
+        graph_run = self.data.graph_run_selected
+        graph_reg = self.data.graph_reg_selected
+        graph_ch = self.data.graph_ch_selected
+        graph_trial = self.data.graph_trial_selected
+        trace_key = f'{graph_reg}_{graph_ch}'
+        ch0_key = f'{graph_reg}_ch0'
+
+        trace_data = self.data.corrsig_reg_results[graph_run][trace_key]
+        ch0_data = self.data.corrsig_reg_results[graph_run][ch0_key]
+        trial_data_y = trace_data[:, graph_trial - 1]
+        trial_data_x = ch0_data[:, graph_trial - 1]
+
+        # plt.scatter(trial_data_x, trial_data_y, label='Data Points')
+        plt.style.use('fivethirtyeight')
+        fig = Figure(figsize=(7, 5))
+        ax = fig.add_subplot(111)
+        ax.scatter(trial_data_x, trial_data_y)
+
+        # Add labels and legend
+        ax.set_xlabel(f'Ch0 {graph_reg}-Fiber Residual Values', fontsize=8)
+        ax.set_ylabel(f'{graph_ch} {graph_reg}-Fiber Residual Values', fontsize=8)
+        ax.set_title(f'{graph_ch} Against Ch0 For {graph_reg}-Fiber(Trial: {graph_trial})', fontsize=8)
+        ax.tick_params(axis='both', which='major', labelsize=6)
+        ax.tick_params(axis='both', which='minor', labelsize=4)
+
+        return fig
 
     def set_state_based_on_data(self):
         """

@@ -40,8 +40,10 @@ class MSPData:
     traces_by_run_signal_trial: Dict[str, Dict[str, np.ndarray]] = None
 
     bin_size: int = None
-    regressed_traces_by_run_signal_trial: Dict[str, Dict[str,np.ndarray]] = None
 
+    corrsig_reg_results: Dict[str, Dict[str, np.ndarray]] = None
+    regressed_traces_by_run_signal_trial: Dict[str, Dict[str,np.ndarray]] = None
+    ch_names_by_run: Dict[str, list] = None
 
     graph_run_selected: str = None
     graph_reg_selected: str = None

@@ -29,11 +29,12 @@ def regression_main(data: MSPData, controller=None):
     """
     # Initializes the main dictionary
     regressed_traces_by_run_signal_trial = {}
+    corrsig_reg_results = {}
     graph_channels = {}
     # Extracts the data we need
     traces_by_run = data.traces_by_run_signal_trial
     binsize = data.bin_size
-    num_runs = len(traces_by_run)
+    # num_runs = len(traces_by_run)
     # Iterate through each run in the nested dictionary
     for run_key, run_dict in traces_by_run.items():
         # Assign the nested dictionary (traces within each run) to `traces`
@@ -52,11 +53,15 @@ def regression_main(data: MSPData, controller=None):
         unique_channels_ch0_removed = unique_list(channel_names_ch0_removed)
 
         # Does the regression and outputs regression dictionary
-        regressed_signals = regression_func(traces, binsize, unique_channels, unique_regions, unique_channels_ch0_removed)
+        regressed_signals, corrsig_reg_results = regression_func(traces, binsize, unique_channels, unique_regions, unique_channels_ch0_removed)
         regressed_traces_by_run_signal_trial[run_key] = regressed_signals
+        corrsig_reg_results[run_key] = corrsig_reg_results
+        graph_channels[run_key] = unique_channels
 
     # Temp data updating
+    data.ch_names_by_run = graph_channels
     data.regressed_traces_by_run_signal_trial = regressed_traces_by_run_signal_trial
+    data.corrsig_reg_results = corrsig_reg_results
     if controller is not None:
         controller.view.update_state('RG - Regression Done Ready to Graph')
         controller.view.regression_tab.runprog['value'] = 100
@@ -82,7 +87,7 @@ def regression_func(traces, binsize, unique_channels, unique_regions, unique_cha
     regions_correction_fiber_regressed_b = {}
     regions_correction_fiber_regressed_b_r = {}
     region_residuals_ch0_regressed = {}
-
+    corrsig_reg_results = {}
     # This first for loop regresses the correction fiber out
     for channel in unique_channels:
         # Assigns the control trace
@@ -108,9 +113,12 @@ def regression_func(traces, binsize, unique_channels, unique_regions, unique_cha
             res_studentized_b_r = calculate_studentized_residuals(
                 control_trace_b_r, target_trace_b_r)
 
+            res_studentized_debinned = debin_me(res_studentized_b,res_studentized_b_r,binsize)
+            corrsig_reg_results[f'{region}_{channel}'] = res_studentized_debinned
             # Saves the studentized residuals to a dictionary for further regression
             regions_correction_fiber_regressed_b[f'{region}_{channel}_b'] = res_studentized_b
             regions_correction_fiber_regressed_b_r[f'{region}_{channel}_b_r'] = res_studentized_b_r
+
 
     # This for loop regresses ch0 out to output residuals for each region by channel
     for region in unique_regions:
@@ -133,7 +141,7 @@ def regression_func(traces, binsize, unique_channels, unique_regions, unique_cha
             # Saves the output residuals into a dictionary
             region_residuals_ch0_regressed[f'{region}_{channel}'] = debinned_region_residuals
 
-    return region_residuals_ch0_regressed
+    return region_residuals_ch0_regressed, corrsig_reg_results
 
 
 def unique_list(iterable):
@@ -335,35 +343,8 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
     return net_res_debinned
 
 
-def corrsig_test_graph(data: MSPData, controller=None):
-    graph_run = data.graph_run_selected
-    graph_reg = data.graph_reg_selected
-    graph_ch = data.graph_ch_selected
-    graph_trial = data.graph_trial_selected
-    trace_key = f'sig_{graph_reg}_{graph_ch}'
-    corrsig_key = f'sig_corrsig_{graph_ch}'
-
-    trace_data = data.traces_by_run_signal_trial[graph_run][trace_key]
-    corrsig_data = data.traces_by_run_signal_trial[graph_run][corrsig_key]
-    trial_data_y = trace_data[graph_trial+1, :]
-    trial_data_x = corrsig_data[graph_trial+1, :]
-
-    # plt.scatter(trial_data_x, trial_data_y, label='Data Points')
-    plt.style.use('fivethirtyeight')
-    fig = Figure(figsize=(7, 5))
-    ax = fig.add_subplot(111)
-    ax.scatter(trial_data_x, trial_data_y)
-
-    # Add labels and legend
-    ax.set_xlabel('Corrsig Values', fontsize=8)
-    # ax.set_ylabel(f'{graph_reg} Trace Values', fontsize=8)
-    ax.set_title(f'{graph_reg} Against Corr-Fiber For {graph_ch}(Trial: {graph_trial})', fontsize=8)
-    ax.tick_params(axis='both', which='major', labelsize=6)
-    ax.tick_params(axis='both', which='minor', labelsize=4)
-
 
     return fig
-
 if __name__ == "__main__":
     with open('exampledata2.pkl', 'rb') as f:
         loaded_data = pickle.load(f)
