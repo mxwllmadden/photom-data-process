@@ -8,13 +8,7 @@ import matplotlib.pyplot as plt
 from MSPhotom.data import MSPData
 from matplotlib.figure import Figure
 
-"""
-TODO - 7/9/24 - MM
 
-4- Integrate VIEW with CONTROLLER and allow main function (regression_main)
-to interact/alter view for progressbar or similar.
-
-"""
 
 def regression_main(data: MSPData, controller=None):
     """
@@ -35,6 +29,9 @@ def regression_main(data: MSPData, controller=None):
     traces_by_run = data.traces_by_run_signal_trial
     binsize = data.bin_size
     # num_runs = len(traces_by_run)
+    # Extracts the data we need
+    traces_by_run = data.traces_by_run_signal_trial
+    binsize = data.bin_size
     # Iterate through each run in the nested dictionary
     for run_key, run_dict in traces_by_run.items():
         # Assign the nested dictionary (traces within each run) to `traces`
@@ -193,8 +190,8 @@ def bin_trials(signal: np.ndarray, binsize):
             return binned_signal, None
 
     # Calculates new amount of columns for reshaping the binned data
-    num_binned_columns = (num_trials // binsize)
-    remainder_columns = (num_trials % binsize)
+    num_binned_columns = num_trials // binsize
+    remainder_columns = num_trials % binsize
 
     # Calculates the number of rows in the reshaped array
     trimmed_signal_length = binsize * num_binned_columns
@@ -221,7 +218,8 @@ def bin_trials(signal: np.ndarray, binsize):
 def calculate_studentized_residuals(X, Y):
     # This logic is here to quickly exit the function if there is no binned remainder
     """
-    This Function calculates internally studentized residuals and externally(deleted) studentized residuals.
+    This Function calculates internally studentized residuals and externally
+    (deleted) studentized residuals.
 
     This function has also been checked against the statsmodels package 0.14.0.
     Below are some useful links to understand studentization:
@@ -281,7 +279,8 @@ def calculate_studentized_residuals(X, Y):
         MSE = sum((Y_valid - y_hat) ** 2) / (n - 2)
         SE_regression = ((MSE * (1 - h_ii)) ** 0.5)
 
-        # np.where logic is to ensure residuals get encoded as zero instead of nans if sum((Y_valid - y_hat) = 0
+        # np.where logic is to ensure residuals get encoded as zero instead of 
+        # nans if sum((Y_valid - y_hat) = 0
         internally_studentized_residuals_valid = np.where(SE_regression != 0, residuals_valid / SE_regression, 0)
         # Returns internally studentized residuals to their correct location using the valid mask
         internally_studentized_residuals[valid_mask, i] = internally_studentized_residuals_valid
@@ -342,14 +341,3 @@ def debin_me(binned_signal, binned_signal_remainder, binsize):
         [net_res_reshaped, net_res_reshaped_r], axis=1)
     return net_res_debinned
 
-
-
-    return fig
-if __name__ == "__main__":
-    with open('exampledata2.pkl', 'rb') as f:
-        loaded_data = pickle.load(f)
-    # print(loaded_data.traces_by_run_signal_trial.keys())
-
-    # corrsig_test_graph(loaded_data)
-    regression_main(loaded_data)
-    # save_to_csv(loaded_data)
